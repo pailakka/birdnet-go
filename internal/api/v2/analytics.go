@@ -59,6 +59,7 @@ type SpeciesSummary struct {
 	CommonName     string  `json:"common_name"`
 	SpeciesCode    string  `json:"species_code,omitempty"`
 	Count          int     `json:"count"`
+	ActiveDays     int     `json:"active_days"`
 	FirstHeard     string  `json:"first_heard,omitempty"`
 	LastHeard      string  `json:"last_heard,omitempty"`
 	AvgConfidence  float64 `json:"avg_confidence,omitempty"`
@@ -649,6 +650,7 @@ func (c *Controller) convertSummaryDataToResponse(summaryData []datastore.Specie
 			CommonName:     data.CommonName,
 			SpeciesCode:    data.SpeciesCode,
 			Count:          data.Count,
+			ActiveDays:     data.ActiveDays,
 			FirstHeard:     formatTimeIfNotZero(data.FirstSeen),
 			LastHeard:      formatTimeIfNotZero(data.LastSeen),
 			AvgConfidence:  data.AvgConfidence,

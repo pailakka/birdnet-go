@@ -107,6 +107,7 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		assert.Equal(t, "American Robin", robin.CommonName)
 		assert.Equal(t, "amerob", robin.SpeciesCode)
 		assert.Equal(t, 2, robin.Count)
+		assert.Equal(t, 1, robin.ActiveDays)
 		assert.InDelta(t, 0.875, robin.AvgConfidence, 0.001)
 		assert.InDelta(t, 0.90, robin.MaxConfidence, 0.01)
 
@@ -116,6 +117,7 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		assert.Equal(t, "Blue Jay", blueJay.CommonName)
 		assert.Contains(t, []string{"blujay", "blujay1"}, blueJay.SpeciesCode) // MAX will pick one
 		assert.Equal(t, 2, blueJay.Count)
+		assert.Equal(t, 1, blueJay.ActiveDays)
 		assert.InDelta(t, 0.775, blueJay.AvgConfidence, 0.001)
 		assert.InDelta(t, 0.80, blueJay.MaxConfidence, 0.01)
 
@@ -125,6 +127,7 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		assert.Equal(t, "Northern Cardinal", cardinal.CommonName)
 		assert.Equal(t, "norcar", cardinal.SpeciesCode)
 		assert.Equal(t, 1, cardinal.Count)
+		assert.Equal(t, 1, cardinal.ActiveDays)
 		assert.InDelta(t, 0.95, cardinal.AvgConfidence, 0.01)
 		assert.InDelta(t, 0.95, cardinal.MaxConfidence, 0.01)
 	})
@@ -172,6 +175,31 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		blueJay := findSpeciesByScientificName(summaries, "Cyanocitta cristata")
 		require.NotNil(t, blueJay)
 		assert.Equal(t, 2, blueJay.Count)
+		assert.Equal(t, 1, blueJay.ActiveDays)
+	})
+
+	t.Run("counts active days across multiple dates", func(t *testing.T) {
+		t.Parallel()
+		ds := setupTestDB(t)
+		seedTestData(t, ds)
+
+		err := ds.DB.Create(&Note{
+			Date:           "2024-01-16",
+			Time:           "18:45:00",
+			ScientificName: "Turdus migratorius",
+			CommonName:     "American Robin",
+			SpeciesCode:    "amerob",
+			Confidence:     0.88,
+		}).Error
+		require.NoError(t, err)
+
+		summaries, err := ds.GetSpeciesSummaryData(t.Context(), "", "")
+		require.NoError(t, err)
+
+		robin := findSpeciesByScientificName(summaries, "Turdus migratorius")
+		require.NotNil(t, robin)
+		assert.Equal(t, 3, robin.Count)
+		assert.Equal(t, 2, robin.ActiveDays)
 	})
 
 	t.Run("empty database", func(t *testing.T) {
@@ -230,6 +258,7 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		chickadee := summaries[0]
 		assert.Equal(t, "Poecile carolinensis", chickadee.ScientificName)
 		assert.Equal(t, 3, chickadee.Count)
+		assert.Equal(t, 1, chickadee.ActiveDays)
 		assert.InDelta(t, 0.80, chickadee.AvgConfidence, 0.001)
 		assert.InDelta(t, 0.90, chickadee.MaxConfidence, 0.01)
 		// MAX() should pick one of the species codes
@@ -271,6 +300,7 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		assert.Equal(t, "Null Bird", nullSpecies.CommonName)
 		assert.Empty(t, nullSpecies.SpeciesCode, "NULL species_code should be converted to empty string")
 		assert.Equal(t, 1, nullSpecies.Count)
+		assert.Equal(t, 1, nullSpecies.ActiveDays)
 
 		// Also cover NULL common_name
 		result2 := ds.DB.Exec(`
@@ -285,6 +315,7 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		require.NotNil(t, nsCommon)
 		assert.Empty(t, nsCommon.CommonName, "NULL common_name should be converted to empty string")
 		assert.Equal(t, "nulcom", nsCommon.SpeciesCode)
+		assert.Equal(t, 1, nsCommon.ActiveDays)
 	})
 }
 

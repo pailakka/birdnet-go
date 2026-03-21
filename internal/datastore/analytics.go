@@ -26,6 +26,7 @@ type SpeciesSummaryData struct {
 	CommonName     string
 	SpeciesCode    string
 	Count          int
+	ActiveDays     int
 	FirstSeen      time.Time
 	LastSeen       time.Time
 	AvgConfidence  float64
@@ -103,6 +104,7 @@ func (ds *DataStore) GetSpeciesSummaryData(ctx context.Context, startDate, endDa
 			COALESCE(MAX(notes.common_name), '') as common_name,
 			COALESCE(MAX(notes.species_code), '') as species_code,
 			COUNT(*) as count,
+			COUNT(DISTINCT notes.date) as active_days,
 			MIN(%s) as first_seen,
 			MAX(%s) as last_seen,
 			AVG(notes.confidence) as avg_confidence,
@@ -195,6 +197,7 @@ func (ds *DataStore) GetSpeciesSummaryData(ctx context.Context, startDate, endDa
 				&summary.CommonName,
 				&summary.SpeciesCode,
 				&summary.Count,
+				&summary.ActiveDays,
 				&firstSeenStr,
 				&lastSeenStr,
 				&summary.AvgConfidence,

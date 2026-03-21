@@ -87,6 +87,8 @@
       duration: params.get('duration') ? parseInt(params.get('duration')!) : undefined,
       species: params.get('species') || undefined,
       search: search || undefined,
+      start_date: params.get('start_date') || undefined,
+      end_date: params.get('end_date') || undefined,
       numResults,
       offset: parseInt(params.get('offset') || '0'),
       sortBy,
@@ -123,7 +125,7 @@
       detectionsData = {
         notes: data.data || [],
         queryType: queryParams.queryType || 'all',
-        date: queryParams.date!,
+        date: queryParams.start_date || queryParams.date!,
         hour: queryParams.hour ? parseInt(queryParams.hour) : undefined,
         duration: queryParams.duration,
         species: queryParams.species,

@@ -61,6 +61,7 @@ func TestGetSpeciesSummary(t *testing.T) {
 			CommonName:     "American Robin",
 			SpeciesCode:    "amerob",
 			Count:          42,
+			ActiveDays:     12,
 			FirstSeen:      firstSeen,
 			LastSeen:       lastSeen,
 			AvgConfidence:  0.75,
@@ -71,6 +72,7 @@ func TestGetSpeciesSummary(t *testing.T) {
 			CommonName:     "Blue Jay",
 			SpeciesCode:    "blujay",
 			Count:          27,
+			ActiveDays:     9,
 			FirstSeen:      time.Now().AddDate(0, -2, 0),
 			LastSeen:       time.Now(),
 			AvgConfidence:  0.82,
@@ -109,10 +111,12 @@ func TestGetSpeciesSummary(t *testing.T) {
 		assert.Equal(t, "American Robin", response[0]["common_name"])
 		assert.Equal(t, "amerob", response[0]["species_code"])
 		assert.InDelta(t, 42, response[0]["count"], 0.01)
+		assert.InDelta(t, 12, response[0]["active_days"], 0.01)
 		assert.Equal(t, "Cyanocitta cristata", response[1]["scientific_name"])
 		assert.Equal(t, "Blue Jay", response[1]["common_name"])
 		assert.Equal(t, "blujay", response[1]["species_code"])
 		assert.InDelta(t, 27, response[1]["count"], 0.01)
+		assert.InDelta(t, 9, response[1]["active_days"], 0.01)
 	}
 
 	// Verify mock expectations
@@ -184,6 +188,7 @@ func TestGetSpeciesSummaryWithDateFilters(t *testing.T) {
 			CommonName:     "American Robin",
 			SpeciesCode:    "amerob",
 			Count:          10,
+			ActiveDays:     2,
 			FirstSeen:      time.Date(2024, 1, 15, 8, 30, 0, 0, time.UTC),
 			LastSeen:       time.Date(2024, 1, 16, 14, 0, 0, 0, time.UTC),
 			AvgConfidence:  0.85,
@@ -219,6 +224,7 @@ func TestGetSpeciesSummaryWithDateFilters(t *testing.T) {
 		assert.Len(t, response, 1)
 		assert.Equal(t, "Turdus migratorius", response[0]["scientific_name"])
 		assert.InDelta(t, 10, response[0]["count"], 0.01)
+		assert.InDelta(t, 2, response[0]["active_days"], 0.01)
 	}
 
 	// Verify mock expectations
