@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -279,11 +280,13 @@ func TestGroupPathsWithPartitions_MixedRootAndVolumePaths(t *testing.T) {
 
 	// Create a real temp directory to use as a volume mount path
 	tempDir := t.TempDir()
+	resolvedTempDir, err := filepath.EvalSymlinks(tempDir)
+	require.NoError(t, err)
 
 	// Simulate container with volume mounts: "/" not in partitions,
 	// but tempDir is a partition mount
 	partitions := []disk.PartitionStat{
-		{Device: "/dev/sda1", Mountpoint: tempDir, Fstype: "ext4"},
+		{Device: "/dev/sda1", Mountpoint: resolvedTempDir, Fstype: "ext4"},
 	}
 
 	// "/" should fall back, tempDir should resolve to its partition
@@ -297,7 +300,7 @@ func TestGroupPathsWithPartitions_MixedRootAndVolumePaths(t *testing.T) {
 	assert.Empty(t, groups[0].Device) // fallback has no device info
 	assert.Equal(t, []string{"/"}, groups[0].Paths)
 
-	assert.Equal(t, tempDir, groups[1].MountPoint)
+	assert.Equal(t, resolvedTempDir, groups[1].MountPoint)
 	assert.Equal(t, "/dev/sda1", groups[1].Device)
 	assert.Equal(t, []string{tempDir}, groups[1].Paths)
 }

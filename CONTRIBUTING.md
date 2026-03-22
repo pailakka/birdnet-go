@@ -107,7 +107,7 @@ Before contributing:
 
 **Requirements:**
 
-- Go 1.25+
+- Go 1.26+
 - Node.js 22.x+ (LTS)
 - Build tools (gcc, git, wget)
 - TensorFlow Lite C library (auto-downloaded)
@@ -148,7 +148,7 @@ task setup-dev
 
 The `setup-dev` task installs:
 
-- Go 1.25.3, Node.js LTS, build tools
+- Go 1.26.x (matching `go.mod`), Node.js LTS, build tools
 - golangci-lint, air, frontend dependencies
 - Playwright browsers, git hooks (Husky)
 

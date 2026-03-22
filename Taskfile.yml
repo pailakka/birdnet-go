@@ -4,6 +4,12 @@ vars:
   BINARY_DIR: bin
   BINARY_NAME: birdnet-go
   TFLITE_VERSION: v2.17.1
+  GO_REQUIRED_VERSION:
+    sh: awk '/^go / { print $2; exit }' go.mod
+  GO_REQUIRED_MINOR:
+    sh: awk '/^go / { split($2, parts, "."); printf "%s.%s\n", parts[1], parts[2]; exit }' go.mod
+  GO_BREW_FORMULA:
+    sh: awk '/^go / { split($2, parts, "."); printf "go@%s.%s\n", parts[1], parts[2]; exit }' go.mod
   LABELS_DIR: internal/birdnet/data/labels
   AVICOMMONS_DATA_DIR: internal/imageprovider/data
   AVICOMMONS_JSON_FILE: latest.json
@@ -23,6 +29,41 @@ vars:
     sh: uname -m
   # Common build flags
   CGO_FLAGS: CGO_ENABLED=1 CGO_CFLAGS="-I$HOME/src/tensorflow"
+  TFLITE_LOCAL_LIB_DIR:
+    sh: |
+      case "{{.UNAME_S}}:{{.UNAME_M}}" in
+        Darwin:arm64) echo "/opt/homebrew/lib" ;;
+        Darwin:*) echo "/usr/local/lib" ;;
+        Linux:*) echo "/usr/lib" ;;
+        *) echo "" ;;
+      esac
+  TFLITE_LOCAL_LIB_ARCH:
+    sh: |
+      case "{{.UNAME_S}}:{{.UNAME_M}}" in
+        Darwin:arm64) echo "darwin_arm64.tar.gz" ;;
+        Darwin:*) echo "darwin_amd64.tar.gz" ;;
+        Linux:arm64|Linux:aarch64) echo "linux_arm64.tar.gz" ;;
+        Linux:*) echo "linux_amd64.tar.gz" ;;
+        *) echo "" ;;
+      esac
+  TFLITE_LOCAL_TARGET:
+    sh: |
+      case "{{.UNAME_S}}:{{.UNAME_M}}" in
+        Darwin:arm64) echo "darwin_arm64" ;;
+        Darwin:*) echo "darwin_amd64" ;;
+        Linux:arm64|Linux:aarch64) echo "linux_arm64" ;;
+        Linux:*) echo "linux_amd64" ;;
+        *) echo "" ;;
+      esac
+  TFLITE_RUNTIME_FILENAME:
+    sh: |
+      case "{{.UNAME_S}}" in
+        Darwin) echo "libtensorflowlite_c.dylib" ;;
+        Linux) echo "libtensorflowlite_c.so" ;;
+        *) echo "" ;;
+      esac
+  TFLITE_RPATH_FLAG: '{{if eq .UNAME_S "Darwin"}} -Wl,-rpath,{{.TFLITE_LOCAL_LIB_DIR}}{{end}}'
+  TFLITE_TEST_LDFLAGS: '-L{{.TFLITE_LOCAL_LIB_DIR}} -ltensorflowlite_c{{.TFLITE_RPATH_FLAG}}'
   BUILD_FLAGS: -ldflags "-s -w -X 'main.buildDate={{.BUILD_DATE}}' -X 'main.version={{.VERSION}}'"
   # System paths
   SYSTEM_LIB_DIR_AMD64: /usr/lib
@@ -35,9 +76,10 @@ tasks:
   # Task for running tests
   test:
     desc: Run tests for the application
+    deps: [check-tensorflow, ensure-local-tflite]
     cmds:
       # Use noembed,skipfrontend tags to skip model and frontend embedding for faster tests
-      - go test -tags noembed,skipfrontend ./... {{.TEST_FLAGS}}
+      - '{{.CGO_FLAGS}} CGO_LDFLAGS="{{.TFLITE_TEST_LDFLAGS}}" go test -tags noembed,skipfrontend ./... {{.TEST_FLAGS}}'
     vars:
       TEST_FLAGS: '{{default "" .CLI_ARGS}}'
 
@@ -51,10 +93,11 @@ tasks:
   # Task for running tests with coverage report
   test-coverage:
     desc: Run tests with coverage report
+    deps: [check-tensorflow, ensure-local-tflite]
     cmds:
       - mkdir -p coverage
       # Use noembed,skipfrontend tags to skip model and frontend embedding for faster tests
-      - go test -tags noembed,skipfrontend ./... -coverprofile=coverage/coverage.out {{.TEST_FLAGS}}
+      - '{{.CGO_FLAGS}} CGO_LDFLAGS="{{.TFLITE_TEST_LDFLAGS}}" go test -tags noembed,skipfrontend ./... -coverprofile=coverage/coverage.out {{.TEST_FLAGS}}'
       - go tool cover -html=coverage/coverage.out -o coverage/coverage.html
     vars:
       TEST_FLAGS: '{{default "" .CLI_ARGS}}'
@@ -62,21 +105,9 @@ tasks:
   # Go linting with CGO support for TensorFlow
   lint:
     desc: Run golangci-lint with TensorFlow CGO flags
+    deps: [check-tensorflow, ensure-local-tflite]
     cmds:
-      - |
-        # Determine library path based on OS
-        if [ "{{.UNAME_S}}" = "Darwin" ]; then
-          if [ "{{.UNAME_M}}" = "arm64" ]; then
-            LIB_DIR="/opt/homebrew/lib"
-          else
-            LIB_DIR="/usr/local/lib"
-          fi
-        else
-          LIB_DIR="/usr/lib"
-        fi
-        # Use noembed,skipfrontend tags to skip model and frontend embedding for faster linting
-        {{.CGO_FLAGS}} CGO_LDFLAGS="-L${LIB_DIR} -ltensorflowlite_c" \
-        golangci-lint run --build-tags=noembed,skipfrontend {{.CLI_ARGS}}
+      - '{{.CGO_FLAGS}} CGO_LDFLAGS="-L{{.TFLITE_LOCAL_LIB_DIR}} -ltensorflowlite_c" golangci-lint run --build-tags=noembed,skipfrontend {{.CLI_ARGS}}'
     vars:
       CLI_ARGS: '{{default "-v" .CLI_ARGS}}'
 
@@ -138,7 +169,7 @@ tasks:
         echo "    - macOS: Homebrew must be installed first"
         echo ""
         echo "This will install:"
-        echo "  • Go 1.25.3"
+        echo "  • Go {{.GO_REQUIRED_VERSION}} (matching go.mod)"
         echo "  • Node.js LTS"
         echo "  • Build tools (gcc, git, wget, etc.)"
         echo "  • Go dev tools (golangci-lint, air)"
@@ -154,6 +185,7 @@ tasks:
       - task: install-go-tools
       - task: setup-frontend-dev
       - task: check-tensorflow
+      - task: ensure-local-tflite
       - task: verify-dev-setup
       - |
         echo ""
@@ -200,8 +232,8 @@ tasks:
             ca-certificates
 
           # Install Go if not present or version is too old
-          REQUIRED_GO_VERSION="1.25"
-          GO_VERSION="1.25.3"
+          REQUIRED_GO_VERSION="{{.GO_REQUIRED_MINOR}}"
+          GO_VERSION="{{.GO_REQUIRED_VERSION}}"
           INSTALL_GO=false
 
           if ! command -v go >/dev/null 2>&1; then
@@ -322,7 +354,9 @@ tasks:
           brew install git wget curl
 
           # Install Go with version checking
-          REQUIRED_GO_VERSION="1.25"
+          REQUIRED_GO_VERSION="{{.GO_REQUIRED_MINOR}}"
+          GO_VERSION="{{.GO_REQUIRED_VERSION}}"
+          GO_BREW_FORMULA="{{.GO_BREW_FORMULA}}"
           INSTALL_GO=false
 
           if ! command -v go >/dev/null 2>&1; then
@@ -341,7 +375,7 @@ tasks:
                 echo "   Current: ${CURRENT_GO_VERSION}"
                 echo "   Required: ${REQUIRED_GO_VERSION}.x"
                 echo ""
-                printf "   Upgrade to Go ${REQUIRED_GO_VERSION}? (y/N) "
+                printf "   Upgrade to Go ${GO_VERSION}? (y/N) "
                 read REPLY
                 case "$REPLY" in
                   [Yy]|[Yy][Ee][Ss]) INSTALL_GO=true ;;
@@ -352,14 +386,14 @@ tasks:
           fi
 
           if [ "$INSTALL_GO" = true ]; then
-            echo "📥 Installing Go ${REQUIRED_GO_VERSION}..."
+            echo "📥 Installing Go ${GO_VERSION}..."
             # Try versioned formula first, fallback to latest
-            if brew install go@1.25 2>/dev/null; then
-              echo "✅ Go 1.25.x installed via go@1.25"
+            if brew install "${GO_BREW_FORMULA}" 2>/dev/null; then
+              echo "✅ Go ${REQUIRED_GO_VERSION}.x installed via ${GO_BREW_FORMULA}"
               # Link the versioned formula
-              brew link go@1.25 || true
+              brew link --overwrite --force "${GO_BREW_FORMULA}" || true
             else
-              echo "⚠️  go@1.25 formula not available, installing latest Go"
+              echo "⚠️  ${GO_BREW_FORMULA} formula not available, installing latest Go"
               brew install go
               INSTALLED_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
               echo "✅ Go ${INSTALLED_VERSION} installed"
@@ -464,15 +498,16 @@ tasks:
         # Initialize Husky for git hooks (pre-commit checks)
         echo "🪝 Setting up git hooks with Husky..."
         if [ -d ".git" ]; then
-          cd frontend
-          if ! npm run prepare; then
+          if ! ./frontend/node_modules/.bin/husky .husky; then
             echo "⚠️  Failed to initialize Husky"
-            echo "   Git hooks won't be active, but you can initialize later with: cd frontend && npm run prepare"
-          else
+            echo "   Git hooks won't be active, but you can initialize later with: ./frontend/node_modules/.bin/husky .husky"
+          elif [ "$(git config --get core.hooksPath 2>/dev/null)" = ".husky/_" ] && [ -f ".husky/_/pre-commit" ] && [ -f ".husky/pre-commit" ]; then
             echo "✅ Git hooks initialized"
-            echo "   Pre-commit hook will run golangci-lint and frontend linting automatically"
+            echo "   Pre-commit hooks are active through core.hooksPath=.husky/_"
+          else
+            echo "⚠️  Husky did not finish configuring git hooks"
+            echo "   Try again with: ./frontend/node_modules/.bin/husky .husky"
           fi
-          cd ..
         else
           echo "⚠️  Not a git repository, skipping Husky setup"
         fi
@@ -489,7 +524,7 @@ tasks:
         echo ""
 
         # Check Go with version validation
-        REQUIRED_GO_VERSION="1.25"
+        REQUIRED_GO_VERSION="{{.GO_REQUIRED_MINOR}}"
         if command -v go >/dev/null 2>&1; then
           CURRENT_GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
           CURRENT_GO_MINOR=$(echo "$CURRENT_GO_VERSION" | cut -d. -f1,2)
@@ -528,16 +563,24 @@ tasks:
         fi
 
         # Check golangci-lint (required for pre-commit linting)
-        if command -v golangci-lint >/dev/null 2>&1; then
-          echo "✅ golangci-lint: $(golangci-lint --version | head -n1)"
+        GOLANGCI_LINT_BIN=$(command -v golangci-lint 2>/dev/null || true)
+        if [ -z "$GOLANGCI_LINT_BIN" ] && [ -x "$(go env GOPATH)/bin/golangci-lint" ]; then
+          GOLANGCI_LINT_BIN="$(go env GOPATH)/bin/golangci-lint"
+        fi
+        if [ -n "$GOLANGCI_LINT_BIN" ]; then
+          echo "✅ golangci-lint: $($GOLANGCI_LINT_BIN --version | head -n1)"
         else
           echo "❌ golangci-lint: not found (required for development)"
           exit 1
         fi
 
         # Check air (required for hot reload development)
-        if command -v air >/dev/null 2>&1; then
-          echo "✅ air: installed"
+        AIR_BIN=$(command -v air 2>/dev/null || true)
+        if [ -z "$AIR_BIN" ] && [ -x "$(go env GOPATH)/bin/air" ]; then
+          AIR_BIN="$(go env GOPATH)/bin/air"
+        fi
+        if [ -n "$AIR_BIN" ]; then
+          echo "✅ air: installed (${AIR_BIN})"
         else
           echo "❌ air: not found (required for 'task dev_server' and 'air' commands)"
           exit 1
@@ -567,12 +610,30 @@ tasks:
           exit 1
         fi
 
+        # Check TensorFlow headers
+        if [ -f "$HOME/src/tensorflow/tensorflow/lite/c/c_api.h" ]; then
+          echo "✅ TensorFlow headers: installed"
+        else
+          echo "❌ TensorFlow headers: not found"
+          exit 1
+        fi
+
+        # Check TensorFlow Lite runtime library
+        if [ -n "{{.TFLITE_RUNTIME_FILENAME}}" ] && [ -f "{{.TFLITE_LOCAL_LIB_DIR}}/{{.TFLITE_RUNTIME_FILENAME}}" ]; then
+          echo "✅ TensorFlow Lite runtime: {{.TFLITE_LOCAL_LIB_DIR}}/{{.TFLITE_RUNTIME_FILENAME}}"
+        else
+          echo "❌ TensorFlow Lite runtime: not found in {{.TFLITE_LOCAL_LIB_DIR}}"
+          echo "   Run 'task setup-dev' to download the local runtime library"
+          exit 1
+        fi
+
         # Check git hooks (Husky pre-commit)
-        if [ -f ".git/hooks/pre-commit" ]; then
-          echo "✅ Git hooks: configured (pre-commit checks active)"
+        HOOKS_PATH=$(git config --get core.hooksPath 2>/dev/null || true)
+        if [ "$HOOKS_PATH" = ".husky/_" ] && [ -f ".husky/_/pre-commit" ] && [ -f ".husky/pre-commit" ]; then
+          echo "✅ Git hooks: configured (core.hooksPath=${HOOKS_PATH})"
         else
           echo "⚠️  Git hooks: not initialized"
-          echo "   Run: cd frontend && npm run prepare"
+          echo "   Run: ./frontend/node_modules/.bin/husky .husky"
         fi
 
         # Check Playwright (optional for E2E tests)
@@ -616,9 +677,33 @@ tasks:
           echo "TensorFlow headers already exist at version {{.TFLITE_VERSION}}"
         fi
 
+  ensure-local-tflite:
+    internal: true
+    deps: [check-tools]
+    cmds:
+      - |
+        if [ -z "{{.TFLITE_LOCAL_TARGET}}" ] || [ -z "{{.TFLITE_LOCAL_LIB_DIR}}" ] || [ -z "{{.TFLITE_LOCAL_LIB_ARCH}}" ]; then
+          echo "❌ Unsupported host platform for TensorFlow Lite setup: {{.UNAME_S}}/{{.UNAME_M}}"
+          exit 1
+        fi
+      - task: download-tflite
+        vars:
+          TFLITE_LIB_DIR: '{{.TFLITE_LOCAL_LIB_DIR}}'
+          TFLITE_LIB_ARCH: '{{.TFLITE_LOCAL_LIB_ARCH}}'
+          TARGET: '{{.TFLITE_LOCAL_TARGET}}'
+
   dev_server:
     cmds:
-      - air realtime
+      - |
+        AIR_BIN=$(command -v air 2>/dev/null || true)
+        if [ -z "$AIR_BIN" ] && [ -x "$(go env GOPATH)/bin/air" ]; then
+          AIR_BIN="$(go env GOPATH)/bin/air"
+        fi
+        if [ -z "$AIR_BIN" ]; then
+          echo "❌ air not found. Run 'task setup-dev' first."
+          exit 1
+        fi
+        "$AIR_BIN" realtime
 
   # Frontend build tasks
   frontend-install:
@@ -744,7 +829,16 @@ tasks:
   integration-backend:
     desc: Start backend for integration testing (air with hot reload)
     cmds:
-      - air realtime
+      - |
+        AIR_BIN=$(command -v air 2>/dev/null || true)
+        if [ -z "$AIR_BIN" ] && [ -x "$(go env GOPATH)/bin/air" ]; then
+          AIR_BIN="$(go env GOPATH)/bin/air"
+        fi
+        if [ -z "$AIR_BIN" ]; then
+          echo "❌ air not found. Run 'task setup-dev' first."
+          exit 1
+        fi
+        "$AIR_BIN" realtime
 
   integration-test:
     desc: Run frontend integration tests (backend must be running)

@@ -95,7 +95,7 @@ task dev_server # or "air realtime"
 
 The `setup-dev` task will automatically install:
 
-- Go 1.25
+- Go 1.26.x (matching `go.mod`)
 - Node.js LTS
 - Build tools (gcc, git, wget, etc.)
 - golangci-lint (Go linter)

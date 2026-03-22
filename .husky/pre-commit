@@ -16,10 +16,10 @@ GO_FILES=$(git diff --cached --name-only --diff-filter=ACMR | \
 if [ -n "$GO_FILES" ]; then
   echo "📝 Go files detected in commit, running golangci-lint..."
   
-  # Check if golangci-lint is available
-  if ! command -v golangci-lint >/dev/null 2>&1; then
-    echo "❌ golangci-lint is not installed or not in PATH"
-    echo "💡 Install it with: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b \$(go env GOPATH)/bin v1.61.0"
+  # Check if task runner is available so we can reuse the repo's TensorFlow-aware lint config
+  if ! command -v task >/dev/null 2>&1; then
+    echo "❌ task is not installed or not in PATH"
+    echo "💡 Install it with: https://taskfile.dev/installation/"
     exit 1
   fi
   
@@ -42,9 +42,9 @@ if [ -n "$GO_FILES" ]; then
     echo "✅ All Go files are properly formatted"
   fi
   
-  # Run golangci-lint
+  # Run the repo-defined lint task so CGO flags and build tags stay in sync
   echo "   Linting Go files..."
-  if ! golangci-lint run -v; then
+  if ! task lint; then
     echo "❌ golangci-lint found issues in Go files"
     echo "💡 Fix the issues above before committing"
     echo "⚠️  Note: --no-verify bypasses are not accepted in this project"

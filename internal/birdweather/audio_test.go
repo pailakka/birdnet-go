@@ -6,6 +6,8 @@ import (
 	"io"
 	"math"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -237,14 +239,17 @@ func getFFmpegPath() string {
 	// Try to get FFmpeg path from environment variable first
 	path := os.Getenv("FFMPEG_PATH")
 	if path != "" {
-		return path
+		if filepath.IsAbs(path) {
+			return path
+		}
+		if resolvedPath, err := exec.LookPath(path); err == nil {
+			return resolvedPath
+		}
 	}
 
-	// Fall back to a common system location on Linux/macOS
-	if _, err := os.Stat("/usr/bin/ffmpeg"); err == nil {
-		return "/usr/bin/ffmpeg"
+	if resolvedPath, err := exec.LookPath("ffmpeg"); err == nil {
+		return resolvedPath
 	}
 
-	// Fall back to just the binary name, assuming it's in PATH
-	return "ffmpeg"
+	return ""
 }
