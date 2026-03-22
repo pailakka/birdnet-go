@@ -4,8 +4,10 @@ import {
   deriveBirdMigrationAnalytics,
   findBirdMigrationSeason,
   getBirdMigrationObservedEndDate,
+  sortBirdMigrationDisappearances,
   type BirdMigrationDailyDetections,
   type BirdMigrationDailyDiversity,
+  type BirdMigrationDisappearanceRecord,
   type BirdMigrationSeason,
   type BirdMigrationSpeciesSummary,
 } from './birdMigration';
@@ -90,11 +92,31 @@ describe('deriveBirdMigrationAnalytics', () => {
     { date: '2026-03-21', unique_species: 3 },
   ];
 
+  const disappearances: BirdMigrationDisappearanceRecord[] = [
+    {
+      common_name: 'Common Blackbird',
+      scientific_name: 'Turdus merula',
+      species_code: 'combla',
+      last_heard_before_gap: '2025-10-29',
+      returned_on: '2026-03-17',
+      gap_days: 139,
+    },
+    {
+      common_name: 'Fieldfare',
+      scientific_name: 'Turdus pilaris',
+      species_code: 'fieldf',
+      last_heard_before_gap: '2026-03-01',
+      returned_on: '2026-03-12',
+      gap_days: 11,
+    },
+  ];
+
   it('derives recent arrivals, quiet species, roster sorting, and timelines', () => {
     const analytics = deriveBirdMigrationAnalytics(
       species,
       dailyDetections,
       dailyDiversity,
+      disappearances,
       seasons[1],
       '2026-03-21',
       7
@@ -107,6 +129,10 @@ describe('deriveBirdMigrationAnalytics', () => {
 
     expect(analytics.recentArrivals.map(item => item.scientific_name)).toEqual(['Cygnus cygnus']);
     expect(analytics.quietSpecies.map(item => item.scientific_name)).toEqual(['Grus grus']);
+    expect(analytics.disappearances.map(item => item.scientific_name)).toEqual([
+      'Turdus merula',
+      'Turdus pilaris',
+    ]);
     expect(analytics.roster.map(item => item.scientific_name)).toEqual([
       'Erithacus rubecula',
       'Cygnus cygnus',
@@ -124,5 +150,39 @@ describe('deriveBirdMigrationAnalytics', () => {
       detectionCount: 8,
       activeSpeciesCount: 3,
     });
+  });
+});
+
+describe('sortBirdMigrationDisappearances', () => {
+  it('sorts by longest gap first, then by returned date, then by name', () => {
+    const sorted = sortBirdMigrationDisappearances([
+      {
+        common_name: 'Fieldfare',
+        scientific_name: 'Turdus pilaris',
+        last_heard_before_gap: '2026-03-01',
+        returned_on: '2026-03-12',
+        gap_days: 11,
+      },
+      {
+        common_name: 'Common Blackbird',
+        scientific_name: 'Turdus merula',
+        last_heard_before_gap: '2025-10-29',
+        returned_on: '2026-03-17',
+        gap_days: 139,
+      },
+      {
+        common_name: 'Redwing',
+        scientific_name: 'Turdus iliacus',
+        last_heard_before_gap: '2026-03-01',
+        returned_on: '2026-03-15',
+        gap_days: 11,
+      },
+    ]);
+
+    expect(sorted.map(item => item.scientific_name)).toEqual([
+      'Turdus merula',
+      'Turdus iliacus',
+      'Turdus pilaris',
+    ]);
   });
 });

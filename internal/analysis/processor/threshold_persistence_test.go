@@ -129,6 +129,9 @@ func (m *MockDatastore) CountHourlyDetections(string, string, int) (int64, error
 func (m *MockDatastore) GetEarliestDetectionDate(context.Context) (time.Time, error) {
 	return time.Time{}, nil
 }
+func (m *MockDatastore) GetBirdMigrationDisappearances(context.Context, string, string, int) ([]datastore.BirdMigrationDisappearanceData, error) {
+	return make([]datastore.BirdMigrationDisappearanceData, 0), nil
+}
 func (m *MockDatastore) GetSpeciesSummaryData(context.Context, string, string) ([]datastore.SpeciesSummaryData, error) {
 	return make([]datastore.SpeciesSummaryData, 0), nil
 }

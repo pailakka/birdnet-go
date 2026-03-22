@@ -30,6 +30,16 @@ export interface BirdMigrationSpeciesRecord extends BirdMigrationSpeciesSummary 
   days_since_last_seen: number;
 }
 
+export interface BirdMigrationDisappearanceRecord {
+  common_name: string;
+  scientific_name: string;
+  species_code?: string;
+  last_heard_before_gap: string;
+  returned_on: string;
+  gap_days: number;
+  thumbnail_url?: string;
+}
+
 export interface BirdMigrationDailyDetections {
   date: string;
   count: number;
@@ -64,6 +74,7 @@ export interface BirdMigrationDerivedData {
   roster: BirdMigrationSpeciesRecord[];
   recentArrivals: BirdMigrationSpeciesRecord[];
   quietSpecies: BirdMigrationSpeciesRecord[];
+  disappearances: BirdMigrationDisappearanceRecord[];
   arrivalTimeline: BirdMigrationArrivalDatum[];
   activityTimeline: BirdMigrationActivityDatum[];
 }
@@ -191,10 +202,25 @@ export function buildBirdMigrationActivityTimeline(
   }));
 }
 
+export function sortBirdMigrationDisappearances(
+  disappearances: BirdMigrationDisappearanceRecord[]
+): BirdMigrationDisappearanceRecord[] {
+  return [...disappearances].sort((left, right) => {
+    if (left.gap_days !== right.gap_days) {
+      return right.gap_days - left.gap_days;
+    }
+    if (left.returned_on !== right.returned_on) {
+      return right.returned_on.localeCompare(left.returned_on);
+    }
+    return left.common_name.localeCompare(right.common_name);
+  });
+}
+
 export function deriveBirdMigrationAnalytics(
   species: BirdMigrationSpeciesSummary[],
   dailyDetections: BirdMigrationDailyDetections[],
   dailyDiversity: BirdMigrationDailyDiversity[],
+  disappearances: BirdMigrationDisappearanceRecord[],
   season: BirdMigrationSeason,
   observedEndDate: string,
   windowDays: number
@@ -247,6 +273,7 @@ export function deriveBirdMigrationAnalytics(
     roster,
     recentArrivals,
     quietSpecies,
+    disappearances: sortBirdMigrationDisappearances(disappearances),
     arrivalTimeline,
     activityTimeline,
   };

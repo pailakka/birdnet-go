@@ -88,6 +88,24 @@ type BirdMigrationSeasonsResponse struct {
 	Seasons            []BirdMigrationSeason `json:"seasons"`
 }
 
+// BirdMigrationDisappearance represents a species that disappeared mid-season and later returned.
+type BirdMigrationDisappearance struct {
+	ScientificName     string `json:"scientific_name"`
+	CommonName         string `json:"common_name"`
+	SpeciesCode        string `json:"species_code,omitempty"`
+	LastHeardBeforeGap string `json:"last_heard_before_gap"`
+	ReturnedOn         string `json:"returned_on"`
+	GapDays            int    `json:"gap_days"`
+}
+
+// BirdMigrationDisappearancesResponse represents disappearance analytics for a season.
+type BirdMigrationDisappearancesResponse struct {
+	StartDate  string                       `json:"start_date"`
+	EndDate    string                       `json:"end_date"`
+	WindowDays int                          `json:"window_days"`
+	Data       []BirdMigrationDisappearance `json:"data"`
+}
+
 // HourlyDistribution represents detections aggregated by hour
 type HourlyDistribution struct {
 	Hour  int `json:"hour"`
@@ -157,6 +175,7 @@ func (c *Controller) initAnalyticsRoutes() {
 
 	birdMigrationGroup := analyticsGroup.Group("/bird-migration")
 	birdMigrationGroup.GET("/seasons", c.GetBirdMigrationSeasons)
+	birdMigrationGroup.GET("/disappearances", c.GetBirdMigrationDisappearances)
 
 	// Time analytics routes (can be implemented later)
 	timeGroup := analyticsGroup.Group("/time")
@@ -177,6 +196,77 @@ func (c *Controller) GetBirdMigrationSeasons(ctx echo.Context) error {
 			"Failed to get bird migration seasons",
 			http.StatusInternalServerError,
 		)
+	}
+
+	return ctx.JSON(http.StatusOK, response)
+}
+
+// GetBirdMigrationDisappearances handles GET /api/v2/analytics/bird-migration/disappearances.
+func (c *Controller) GetBirdMigrationDisappearances(ctx echo.Context) error {
+	const operation = "bird migration disappearances"
+
+	if err := c.requireQueryParam(ctx, "start_date", operation); err != nil {
+		return err
+	}
+	if err := c.requireQueryParam(ctx, "end_date", operation); err != nil {
+		return err
+	}
+
+	startDate := ctx.QueryParam("start_date")
+	endDate := ctx.QueryParam("end_date")
+
+	if err := c.validateDateFormatStrictWithResponse(ctx, startDate, "start_date", operation); err != nil {
+		return err
+	}
+	if err := c.validateDateFormatStrictWithResponse(ctx, endDate, "end_date", operation); err != nil {
+		return err
+	}
+	if err := c.validateDateRangeWithResponse(ctx, startDate, endDate, operation); err != nil {
+		return err
+	}
+
+	response := BirdMigrationDisappearancesResponse{
+		StartDate: startDate,
+		EndDate:   endDate,
+		Data:      []BirdMigrationDisappearance{},
+	}
+
+	seasonalTracking := buildPublicSeasonalTrackingConfig(c.Settings)
+	if !seasonalTracking.Enabled || len(seasonalTracking.Seasons) == 0 {
+		return ctx.JSON(http.StatusOK, response)
+	}
+
+	response.WindowDays = seasonalTracking.WindowDays
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx.Request().Context(), analyticsQueryTimeout)
+	defer cancel()
+
+	disappearances, err := c.DS.GetBirdMigrationDisappearances(
+		ctxWithTimeout,
+		startDate,
+		endDate,
+		seasonalTracking.WindowDays,
+	)
+	if err != nil {
+		return c.HandleError(
+			ctx,
+			err,
+			"Failed to get bird migration disappearances",
+			http.StatusInternalServerError,
+		)
+	}
+
+	response.Data = make([]BirdMigrationDisappearance, 0, len(disappearances))
+	for i := range disappearances {
+		disappearance := disappearances[i]
+		response.Data = append(response.Data, BirdMigrationDisappearance{
+			ScientificName:     disappearance.ScientificName,
+			CommonName:         disappearance.CommonName,
+			SpeciesCode:        disappearance.SpeciesCode,
+			LastHeardBeforeGap: disappearance.LastHeardBeforeGap,
+			ReturnedOn:         disappearance.ReturnedOn,
+			GapDays:            disappearance.GapDays,
+		})
 	}
 
 	return ctx.JSON(http.StatusOK, response)

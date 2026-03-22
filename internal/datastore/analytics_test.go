@@ -374,6 +374,137 @@ func TestGetEarliestDetectionDate(t *testing.T) {
 	})
 }
 
+func TestGetBirdMigrationDisappearances(t *testing.T) {
+	t.Parallel()
+
+	t.Run("includes species with a qualifying gap and return", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+		insertBirdMigrationNotes(t, ds,
+			[]Note{
+				{ID: 1, Date: "2026-03-01", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 2, Date: "2026-03-05", Time: "06:15:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 3, Date: "2026-03-20", Time: "06:30:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+			},
+			nil,
+		)
+
+		disappearances, err := ds.GetBirdMigrationDisappearances(t.Context(), "2026-03-01", "2026-03-31", 7)
+		require.NoError(t, err)
+		require.Len(t, disappearances, 1)
+
+		assert.Equal(t, "Turdus merula", disappearances[0].ScientificName)
+		assert.Equal(t, "Common Blackbird", disappearances[0].CommonName)
+		assert.Equal(t, "combla", disappearances[0].SpeciesCode)
+		assert.Equal(t, "2026-03-05", disappearances[0].LastHeardBeforeGap)
+		assert.Equal(t, "2026-03-20", disappearances[0].ReturnedOn)
+		assert.Equal(t, 15, disappearances[0].GapDays)
+	})
+
+	t.Run("excludes species without a later return", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+		insertBirdMigrationNotes(t, ds,
+			[]Note{
+				{ID: 1, Date: "2026-03-01", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+			},
+			nil,
+		)
+
+		disappearances, err := ds.GetBirdMigrationDisappearances(t.Context(), "2026-03-01", "2026-03-31", 7)
+		require.NoError(t, err)
+		assert.Empty(t, disappearances)
+	})
+
+	t.Run("exact threshold gap does not qualify", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+		insertBirdMigrationNotes(t, ds,
+			[]Note{
+				{ID: 1, Date: "2026-03-01", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 2, Date: "2026-03-08", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+			},
+			nil,
+		)
+
+		disappearances, err := ds.GetBirdMigrationDisappearances(t.Context(), "2026-03-01", "2026-03-31", 7)
+		require.NoError(t, err)
+		assert.Empty(t, disappearances)
+	})
+
+	t.Run("keeps the longest qualifying gap per species", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+		insertBirdMigrationNotes(t, ds,
+			[]Note{
+				{ID: 1, Date: "2026-03-01", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 2, Date: "2026-03-12", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 3, Date: "2026-03-15", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 4, Date: "2026-03-31", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+			},
+			nil,
+		)
+
+		disappearances, err := ds.GetBirdMigrationDisappearances(t.Context(), "2026-03-01", "2026-03-31", 7)
+		require.NoError(t, err)
+		require.Len(t, disappearances, 1)
+
+		assert.Equal(t, "2026-03-15", disappearances[0].LastHeardBeforeGap)
+		assert.Equal(t, "2026-03-31", disappearances[0].ReturnedOn)
+		assert.Equal(t, 16, disappearances[0].GapDays)
+	})
+
+	t.Run("duplicate detections on the same date do not create fake gaps", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+		insertBirdMigrationNotes(t, ds,
+			[]Note{
+				{ID: 1, Date: "2026-03-01", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 2, Date: "2026-03-01", Time: "18:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 3, Date: "2026-03-10", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+			},
+			nil,
+		)
+
+		disappearances, err := ds.GetBirdMigrationDisappearances(t.Context(), "2026-03-01", "2026-03-31", 7)
+		require.NoError(t, err)
+		require.Len(t, disappearances, 1)
+
+		assert.Equal(t, "2026-03-01", disappearances[0].LastHeardBeforeGap)
+		assert.Equal(t, "2026-03-10", disappearances[0].ReturnedOn)
+		assert.Equal(t, 9, disappearances[0].GapDays)
+	})
+
+	t.Run("false positives do not create or break disappearances", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+		insertBirdMigrationNotes(t, ds,
+			[]Note{
+				{ID: 1, Date: "2026-03-01", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 2, Date: "2026-03-10", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+				{ID: 3, Date: "2026-03-20", Time: "06:00:00", ScientificName: "Turdus merula", CommonName: "Common Blackbird", SpeciesCode: "combla"},
+			},
+			[]NoteReview{
+				{NoteID: 2, Verified: string(entities.VerificationFalsePositive)},
+			},
+		)
+
+		disappearances, err := ds.GetBirdMigrationDisappearances(t.Context(), "2026-03-01", "2026-03-31", 7)
+		require.NoError(t, err)
+		require.Len(t, disappearances, 1)
+
+		assert.Equal(t, "2026-03-01", disappearances[0].LastHeardBeforeGap)
+		assert.Equal(t, "2026-03-20", disappearances[0].ReturnedOn)
+		assert.Equal(t, 19, disappearances[0].GapDays)
+	})
+}
+
 // TestGetSpeciesSummaryDataTimeFormat tests that the time parsing works correctly
 func TestGetSpeciesSummaryDataTimeFormat(t *testing.T) {
 	t.Parallel()
@@ -411,6 +542,20 @@ func findSpeciesByScientificName(summaries []SpeciesSummaryData, scientificName 
 		}
 	}
 	return nil
+}
+
+func insertBirdMigrationNotes(t *testing.T, ds *DataStore, notes []Note, reviews []NoteReview) {
+	t.Helper()
+
+	for i := range notes {
+		err := ds.DB.Create(&notes[i]).Error
+		require.NoError(t, err)
+	}
+
+	for i := range reviews {
+		err := ds.DB.Create(&reviews[i]).Error
+		require.NoError(t, err)
+	}
 }
 
 // TestGetNewSpeciesDetections tests the GetNewSpeciesDetections function

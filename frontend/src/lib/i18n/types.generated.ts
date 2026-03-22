@@ -1275,8 +1275,15 @@ export type TranslationKey =
   | 'analytics.birdMigration.tables.columns.detections'
   | 'analytics.birdMigration.tables.columns.daysQuiet'
   | 'analytics.birdMigration.tables.columns.date'
+  | 'analytics.birdMigration.tables.columns.lastHeardBeforeGap'
+  | 'analytics.birdMigration.tables.columns.returnedOn'
+  | 'analytics.birdMigration.tables.columns.gapDays'
   | 'analytics.birdMigration.tables.explainerRecent' // params: days
   | 'analytics.birdMigration.tables.explainerQuiet' // params: days
+  | 'analytics.birdMigration.tables.disappearances'
+  | 'analytics.birdMigration.tables.disappearancesDescription'
+  | 'analytics.birdMigration.tables.noDisappearances'
+  | 'analytics.birdMigration.tables.explainerDisappearances' // params: days
   | 'analytics.birdMigration.errors.loadFailed'
   | 'settings.title'
   | 'settings.loading'
@@ -3401,6 +3408,7 @@ export type TranslationParams = {
   'analytics.birdMigration.stats.windowDays': { days: string | number };
   'analytics.birdMigration.tables.explainerRecent': { days: string | number };
   'analytics.birdMigration.tables.explainerQuiet': { days: string | number };
+  'analytics.birdMigration.tables.explainerDisappearances': { days: string | number };
   'settings.notFound.message': { section: string | number };
   'settings.main.sections.falsePositiveFilter.detectionCount': {
     count: string | number;

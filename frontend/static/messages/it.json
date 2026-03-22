@@ -1460,10 +1460,17 @@
           "activeDays": "Active Days",
           "detections": "Detections",
           "daysQuiet": "Days Quiet",
-          "date": "Date"
+          "date": "Date",
+          "lastHeardBeforeGap": "Last Heard Before Gap",
+          "returnedOn": "Returned On",
+          "gapDays": "Gap Days"
         },
         "explainerRecent": "Recent Arrivals: first heard within the last {days} days of the observed season range.",
-        "explainerQuiet": "Quiet Species: not heard within the last {days} days of the observed season range."
+        "explainerQuiet": "Quiet Species: not heard within the last {days} days of the observed season range.",
+        "disappearances": "Disappearances",
+        "disappearancesDescription": "Species that were absent for longer than the configured seasonal window and were later heard again.",
+        "noDisappearances": "No species disappeared and returned within the selected season window.",
+        "explainerDisappearances": "Disappearances: absent for more than {days} days and then heard again later in the same observed season range."
       },
       "errors": {
         "loadFailed": "Failed to load bird migration analytics. Please try again."

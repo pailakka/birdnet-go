@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getLocalDateString } from '$lib/utils/date';
+
 import BirdMigration from './BirdMigration.svelte';
 
 const { navigateMock } = vi.hoisted(() => ({
@@ -68,6 +70,8 @@ describe('BirdMigration page', () => {
   });
 
   it('loads seasons, shows season controls, and opens detections with a season range', async () => {
+    const expectedEndDate = getLocalDateString();
+
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce(
@@ -132,18 +136,35 @@ describe('BirdMigration page', () => {
           ],
         })
       )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [
+            {
+              common_name: 'European Robin',
+              scientific_name: 'Erithacus rubecula',
+              species_code: 'eurrob',
+              last_heard_before_gap: '2026-03-05',
+              returned_on: '2026-03-18',
+              gap_days: 13,
+            },
+          ],
+        })
+      )
       .mockResolvedValueOnce(jsonResponse({})) as typeof global.fetch;
 
     render(BirdMigration);
 
     expect((await screen.findAllByText('Spring 2026')).length).toBeGreaterThan(0);
     expect(screen.getByText('analytics.birdMigration.controls.currentSeason')).toBeInTheDocument();
+    expect(
+      await screen.findByText('analytics.birdMigration.tables.disappearances')
+    ).toBeInTheDocument();
 
     const swanButtons = await screen.findAllByRole('button', { name: /Whooper Swan/i });
     await fireEvent.click(swanButtons[0]);
 
     expect(navigateMock).toHaveBeenCalledWith(
-      '/ui/detections?queryType=species&species=Cygnus+cygnus&start_date=2026-03-01&end_date=2026-03-21&sortBy=date_asc&numResults=100&offset=0'
+      `/ui/detections?queryType=species&species=Cygnus+cygnus&start_date=2026-03-01&end_date=${expectedEndDate}&sortBy=date_asc&numResults=100&offset=0`
     );
 
     await waitFor(() => {

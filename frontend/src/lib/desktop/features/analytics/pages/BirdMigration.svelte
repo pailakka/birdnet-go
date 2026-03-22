@@ -22,6 +22,7 @@
     getBirdMigrationObservedEndDate,
     type BirdMigrationDailyDetections,
     type BirdMigrationDailyDiversity,
+    type BirdMigrationDisappearanceRecord,
     type BirdMigrationDerivedData,
     type BirdMigrationSeason,
     type BirdMigrationSpeciesRecord,
@@ -41,6 +42,10 @@
 
   interface DiversityAnalyticsResponse {
     data?: BirdMigrationDailyDiversity[];
+  }
+
+  interface BirdMigrationDisappearancesResponse {
+    data?: BirdMigrationDisappearanceRecord[];
   }
 
   const logger = loggers.analytics;
@@ -230,10 +235,15 @@
     navigation.navigate(buildDetectionsUrl(speciesName, sortBy));
   }
 
-  function updateRowsWithThumbnails(
-    rows: BirdMigrationSpeciesRecord[],
+  interface BirdMigrationThumbnailRow {
+    scientific_name: string;
+    thumbnail_url?: string;
+  }
+
+  function updateRowsWithThumbnails<T extends BirdMigrationThumbnailRow>(
+    rows: T[],
     thumbnails: Record<string, string>
-  ): BirdMigrationSpeciesRecord[] {
+  ): T[] {
     return rows.map(row => {
       const thumbnailUrl = thumbnails[row.scientific_name];
       return thumbnailUrl ? { ...row, thumbnail_url: thumbnailUrl } : row;
@@ -250,6 +260,7 @@
       roster: updateRowsWithThumbnails(migrationData.roster, thumbnails),
       recentArrivals: updateRowsWithThumbnails(migrationData.recentArrivals, thumbnails),
       quietSpecies: updateRowsWithThumbnails(migrationData.quietSpecies, thumbnails),
+      disappearances: updateRowsWithThumbnails(migrationData.disappearances, thumbnails),
     };
   }
 
@@ -338,19 +349,30 @@
         end_date: currentObservedEndDate,
       });
 
-      const [speciesResponse, dailyResponse, diversityResponse] = await Promise.all([
-        fetch(buildAppUrl(`/api/v2/analytics/species/summary?${params.toString()}`)),
-        fetch(buildAppUrl(`/api/v2/analytics/time/daily?${params.toString()}`)),
-        fetch(buildAppUrl(`/api/v2/analytics/species/diversity?${params.toString()}`)),
-      ]);
+      const [speciesResponse, dailyResponse, diversityResponse, disappearancesResponse] =
+        await Promise.all([
+          fetch(buildAppUrl(`/api/v2/analytics/species/summary?${params.toString()}`)),
+          fetch(buildAppUrl(`/api/v2/analytics/time/daily?${params.toString()}`)),
+          fetch(buildAppUrl(`/api/v2/analytics/species/diversity?${params.toString()}`)),
+          fetch(
+            buildAppUrl(`/api/v2/analytics/bird-migration/disappearances?${params.toString()}`)
+          ),
+        ]);
 
-      if (!speciesResponse.ok || !dailyResponse.ok || !diversityResponse.ok) {
+      if (
+        !speciesResponse.ok ||
+        !dailyResponse.ok ||
+        !diversityResponse.ok ||
+        !disappearancesResponse.ok
+      ) {
         throw new Error(t('analytics.birdMigration.errors.loadFailed'));
       }
 
       const species = (await speciesResponse.json()) as BirdMigrationSpeciesSummary[];
       const daily = (await dailyResponse.json()) as DailyAnalyticsResponse;
       const diversity = (await diversityResponse.json()) as DiversityAnalyticsResponse;
+      const disappearances =
+        (await disappearancesResponse.json()) as BirdMigrationDisappearancesResponse;
 
       if (currentRequestId !== requestId) {
         return;
@@ -360,6 +382,7 @@
         species,
         daily.data ?? [],
         diversity.data ?? [],
+        disappearances.data ?? [],
         season,
         currentObservedEndDate,
         windowDays
@@ -572,6 +595,7 @@
         <div class="space-y-2 text-sm text-[var(--color-base-content)] opacity-80">
           <p>{t('analytics.birdMigration.tables.explainerRecent', { days: windowDays })}</p>
           <p>{t('analytics.birdMigration.tables.explainerQuiet', { days: windowDays })}</p>
+          <p>{t('analytics.birdMigration.tables.explainerDisappearances', { days: windowDays })}</p>
         </div>
       </div>
     </div>
@@ -772,6 +796,80 @@
               </div>
             {/if}
           </div>
+        </div>
+      </div>
+
+      <div class="card bg-[var(--color-base-100)] shadow-xs">
+        <div class="card-body p-4 md:p-6">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="card-title">{t('analytics.birdMigration.tables.disappearances')}</h2>
+              <p class="text-sm text-[var(--color-base-content)] opacity-70">
+                {t('analytics.birdMigration.tables.disappearancesDescription')}
+              </p>
+            </div>
+            <span class="text-sm text-[var(--color-base-content)] opacity-70">
+              {formatInteger(migrationData.disappearances.length)}
+            </span>
+          </div>
+
+          {#if migrationData.disappearances.length === 0}
+            <EmptyState
+              title={t('analytics.birdMigration.tables.emptyTitle')}
+              description={t('analytics.birdMigration.tables.noDisappearances')}
+              className="py-8"
+            />
+          {:else}
+            <div class="overflow-x-auto">
+              <table class="table table-sm mt-4">
+                <thead>
+                  <tr>
+                    <th>{t('analytics.birdMigration.tables.columns.species')}</th>
+                    <th>{t('analytics.birdMigration.tables.columns.lastHeardBeforeGap')}</th>
+                    <th>{t('analytics.birdMigration.tables.columns.returnedOn')}</th>
+                    <th>{t('analytics.birdMigration.tables.columns.gapDays')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each migrationData.disappearances as species}
+                    <tr class="hover">
+                      <td>
+                        <button
+                          type="button"
+                          class="flex items-center gap-3 text-left"
+                          onclick={() => openDetections(species.scientific_name, 'date_asc')}
+                        >
+                          {#if species.thumbnail_url}
+                            <img
+                              src={species.thumbnail_url}
+                              alt={species.common_name}
+                              class="size-10 rounded-lg object-cover"
+                              onerror={handleBirdImageError}
+                            />
+                          {:else}
+                            <div
+                              class="size-10 rounded-lg bg-[var(--color-info)]/10 text-[var(--color-info)] flex items-center justify-center text-xs font-semibold"
+                            >
+                              {getSpeciesInitials(species.common_name)}
+                            </div>
+                          {/if}
+                          <span>
+                            <span class="block font-medium">{species.common_name}</span>
+                            <span class="block text-xs opacity-60 italic"
+                              >{species.scientific_name}</span
+                            >
+                          </span>
+                        </button>
+                      </td>
+                      <td>{formatDate(species.last_heard_before_gap)}</td>
+                      <td>{formatDate(species.returned_on)}</td>
+                      <td>{formatInteger(species.gap_days)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
         </div>
       </div>
 

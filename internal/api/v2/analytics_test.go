@@ -340,6 +340,95 @@ func TestGetBirdMigrationSeasonsDisabled(t *testing.T) {
 	mockDS.AssertNotCalled(t, "GetEarliestDetectionDate", mock.Anything)
 }
 
+func TestGetBirdMigrationDisappearances(t *testing.T) {
+	e, mockDS, controller := setupTestEnvironment(t)
+	controller.Settings.Realtime.SpeciesTracking.SeasonalTracking = conf.SeasonalTrackingSettings{
+		Enabled:    true,
+		WindowDays: 7,
+		Seasons: map[string]conf.Season{
+			"spring": {StartMonth: 3, StartDay: 20},
+		},
+	}
+
+	mockDS.On("GetBirdMigrationDisappearances", mock.Anything, "2025-09-22", "2026-03-21", 7).
+		Return([]datastore.BirdMigrationDisappearanceData{
+			{
+				ScientificName:     "Turdus merula",
+				CommonName:         "Common Blackbird",
+				SpeciesCode:        "combla",
+				LastHeardBeforeGap: "2025-10-29",
+				ReturnedOn:         "2026-03-17",
+				GapDays:            139,
+			},
+		}, nil).
+		Once()
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v2/analytics/bird-migration/disappearances?start_date=2025-09-22&end_date=2026-03-21",
+		http.NoBody,
+	)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/api/v2/analytics/bird-migration/disappearances")
+
+	err := controller.GetBirdMigrationDisappearances(c)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var response BirdMigrationDisappearancesResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Equal(t, "2025-09-22", response.StartDate)
+	assert.Equal(t, "2026-03-21", response.EndDate)
+	assert.Equal(t, 7, response.WindowDays)
+	require.Len(t, response.Data, 1)
+	assert.Equal(t, "Turdus merula", response.Data[0].ScientificName)
+	assert.Equal(t, "Common Blackbird", response.Data[0].CommonName)
+	assert.Equal(t, "combla", response.Data[0].SpeciesCode)
+	assert.Equal(t, "2025-10-29", response.Data[0].LastHeardBeforeGap)
+	assert.Equal(t, "2026-03-17", response.Data[0].ReturnedOn)
+	assert.Equal(t, 139, response.Data[0].GapDays)
+
+	mockDS.AssertExpectations(t)
+}
+
+func TestGetBirdMigrationDisappearancesDisabled(t *testing.T) {
+	e, mockDS, controller := setupTestEnvironment(t)
+	controller.Settings.Realtime.SpeciesTracking.SeasonalTracking = conf.SeasonalTrackingSettings{
+		Enabled:    false,
+		WindowDays: 14,
+		Seasons: map[string]conf.Season{
+			"spring": {StartMonth: 3, StartDay: 20},
+		},
+	}
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v2/analytics/bird-migration/disappearances?start_date=2025-09-22&end_date=2026-03-21",
+		http.NoBody,
+	)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/api/v2/analytics/bird-migration/disappearances")
+
+	err := controller.GetBirdMigrationDisappearances(c)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var response BirdMigrationDisappearancesResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.Equal(t, "2025-09-22", response.StartDate)
+	assert.Equal(t, "2026-03-21", response.EndDate)
+	assert.Zero(t, response.WindowDays)
+	assert.Empty(t, response.Data)
+
+	mockDS.AssertNotCalled(t, "GetBirdMigrationDisappearances", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
 // TestGetHourlyAnalytics tests the hourly analytics endpoint
 func TestGetHourlyAnalytics(t *testing.T) {
 	t.Parallel()
