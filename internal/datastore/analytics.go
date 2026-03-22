@@ -60,6 +60,45 @@ type NewSpeciesData struct {
 	CountInPeriod  int    `json:"count_in_period"` // Optional: How many times seen in the query period
 }
 
+// GetEarliestDetectionDate retrieves the earliest non-false-positive detection date.
+func (ds *DataStore) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	type earliestDetectionResult struct {
+		EarliestDate string
+	}
+
+	var result earliestDetectionResult
+	err := ds.DB.WithContext(ctx).
+		Table("notes").
+		Joins("LEFT JOIN note_reviews ON notes.id = note_reviews.note_id").
+		Select("MIN(notes.date) as earliest_date").
+		Where("notes.date IS NOT NULL AND notes.date != ''").
+		Where("(note_reviews.verified IS NULL OR note_reviews.verified != ?)", string(entities.VerificationFalsePositive)).
+		Scan(&result).Error
+	if err != nil {
+		return time.Time{}, errors.New(err).
+			Component("datastore").
+			Category(errors.CategoryDatabase).
+			Context("operation", "get_earliest_detection_date").
+			Build()
+	}
+
+	if result.EarliestDate == "" {
+		return time.Time{}, nil
+	}
+
+	earliestDate, err := time.ParseInLocation(time.DateOnly, result.EarliestDate, time.Local)
+	if err != nil {
+		return time.Time{}, errors.New(err).
+			Component("datastore").
+			Category(errors.CategoryDatabase).
+			Context("operation", "parse_earliest_detection_date").
+			Context("earliest_date", result.EarliestDate).
+			Build()
+	}
+
+	return earliestDate, nil
+}
+
 // GetSpeciesSummaryData retrieves overall statistics for all bird species
 // Optional date range filtering with startDate and endDate parameters in YYYY-MM-DD format
 //

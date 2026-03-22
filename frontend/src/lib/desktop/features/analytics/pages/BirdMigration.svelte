@@ -1,48 +1,39 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Bird, CalendarRange, Clock3, Volume2, ChevronLeft, ChevronRight } from '@lucide/svelte';
+  import { Bird, CalendarRange, ChevronLeft, ChevronRight, Clock3, Volume2 } from '@lucide/svelte';
 
+  import type { SelectOption } from '$lib/desktop/components/forms/SelectDropdown.types';
+  import SelectDropdown from '$lib/desktop/components/forms/SelectDropdown.svelte';
   import EmptyState from '$lib/desktop/components/ui/EmptyState.svelte';
   import ErrorAlert from '$lib/desktop/components/ui/ErrorAlert.svelte';
-  import DatePicker from '$lib/desktop/components/ui/DatePicker.svelte';
   import { handleBirdImageError } from '$lib/desktop/components/ui/image-utils';
   import { t } from '$lib/i18n';
-  import { appState } from '$lib/stores/appState.svelte';
   import { navigation } from '$lib/stores/navigation.svelte';
-  import { getLocalDateString, parseLocalDateString } from '$lib/utils/date';
+  import { parseLocalDateString } from '$lib/utils/date';
   import { loggers } from '$lib/utils/logger';
   import { buildAppUrl } from '$lib/utils/urlHelpers';
 
-  import BirdMigrationArrivalChart from '../components/charts/d3/BirdMigrationArrivalChart.svelte';
   import BirdMigrationActivityChart from '../components/charts/d3/BirdMigrationActivityChart.svelte';
+  import BirdMigrationArrivalChart from '../components/charts/d3/BirdMigrationArrivalChart.svelte';
   import StatCard from '../components/ui/StatCard.svelte';
   import {
     deriveBirdMigrationAnalytics,
-    resolveBirdMigrationSeason,
+    findBirdMigrationSeason,
+    getBirdMigrationObservedEndDate,
     type BirdMigrationDailyDetections,
     type BirdMigrationDailyDiversity,
     type BirdMigrationDerivedData,
-    type BirdMigrationResolvedSeason,
+    type BirdMigrationSeason,
     type BirdMigrationSpeciesRecord,
     type BirdMigrationSpeciesSummary,
   } from '../utils/birdMigration';
 
-  const logger = loggers.analytics;
-
-  const THUMBNAIL_BATCH_SIZE = 20;
-  const THUMBNAIL_BATCH_DELAY_MS = 100;
-  const DEFAULT_RESULTS_LIMIT = '100';
-
-  const SEASON_TRANSLATION_KEYS = {
-    spring: 'settings.species.tracking.seasonal.seasons.spring',
-    summer: 'settings.species.tracking.seasonal.seasons.summer',
-    fall: 'settings.species.tracking.seasonal.seasons.fall',
-    winter: 'settings.species.tracking.seasonal.seasons.winter',
-    wet1: 'settings.species.tracking.seasonal.seasons.wet1',
-    dry1: 'settings.species.tracking.seasonal.seasons.dry1',
-    wet2: 'settings.species.tracking.seasonal.seasons.wet2',
-    dry2: 'settings.species.tracking.seasonal.seasons.dry2',
-  } as const;
+  interface BirdMigrationSeasonsResponse {
+    enabled: boolean;
+    window_days: number;
+    current_season_start: string;
+    seasons: BirdMigrationSeason[];
+  }
 
   interface DailyAnalyticsResponse {
     data?: BirdMigrationDailyDetections[];
@@ -52,46 +43,115 @@
     data?: BirdMigrationDailyDiversity[];
   }
 
-  let selectedDate = $state(getLocalDateString());
-  let resolvedSeason = $state<BirdMigrationResolvedSeason | null>(null);
+  const logger = loggers.analytics;
+  const THUMBNAIL_BATCH_SIZE = 20;
+  const THUMBNAIL_BATCH_DELAY_MS = 100;
+  const DEFAULT_RESULTS_LIMIT = '100';
+
+  let seasonsResponse = $state<BirdMigrationSeasonsResponse | null>(null);
+  let selectedSeasonStart = $state('');
   let migrationData = $state<BirdMigrationDerivedData | null>(null);
+  let isMetadataLoading = $state(false);
   let isLoading = $state(false);
   let isThumbnailLoading = $state(false);
   let error = $state<string | null>(null);
-  let hasMounted = $state(false);
   let requestId = 0;
 
-  const hasSeasonalTracking = $derived(
-    appState.seasonalTracking.enabled && Object.keys(appState.seasonalTracking.seasons).length > 0
+  const hasAvailableSeasons = $derived.by(() =>
+    Boolean(seasonsResponse?.enabled && seasonsResponse.seasons.length > 0)
   );
 
-  function readDateFromUrl(): string {
-    const params = new URLSearchParams(window.location.search);
-    const date = params.get('date');
-    if (!date) {
-      return getLocalDateString();
+  const seasonOptions = $derived.by(
+    (): SelectOption[] =>
+      seasonsResponse?.seasons.map(season => ({
+        value: season.start_date,
+        label: season.label,
+      })) ?? []
+  );
+
+  const selectedSeason = $derived.by(() =>
+    seasonsResponse ? findBirdMigrationSeason(seasonsResponse.seasons, selectedSeasonStart) : null
+  );
+
+  const selectedSeasonIndex = $derived.by(() => {
+    if (!selectedSeason || !seasonsResponse) {
+      return -1;
     }
 
-    return parseLocalDateString(date) ? date : getLocalDateString();
+    return seasonsResponse.seasons.findIndex(
+      season => season.start_date === selectedSeason.start_date
+    );
+  });
+
+  const observedEndDate = $derived.by(() =>
+    selectedSeason ? getBirdMigrationObservedEndDate(selectedSeason) : ''
+  );
+
+  const windowDays = $derived(seasonsResponse?.window_days ?? 0);
+
+  function readSeasonStartFromUrl(): string | null {
+    const params = new URLSearchParams(window.location.search);
+    const seasonStart = params.get('season_start');
+    if (!seasonStart) {
+      return null;
+    }
+
+    return parseLocalDateString(seasonStart) ? seasonStart : null;
   }
 
-  function writeDateToUrl(date: string): void {
+  function writeSeasonStartToUrl(seasonStart: string, replaceState = false): void {
     const url = new URL(window.location.href);
-    url.searchParams.set('date', date);
-    window.history.pushState({}, '', url.toString());
+    url.searchParams.set('season_start', seasonStart);
+
+    const method = replaceState ? 'replaceState' : 'pushState';
+    window.history[method]({}, '', url.toString());
   }
 
-  function setAnchorDate(date: string): void {
-    if (date === selectedDate) {
+  function syncSelectedSeasonFromUrl(replaceState = false): void {
+    if (!seasonsResponse?.enabled || seasonsResponse.seasons.length === 0) {
+      selectedSeasonStart = '';
       return;
     }
 
-    selectedDate = date;
-    writeDateToUrl(date);
+    const requestedSeasonStart = readSeasonStartFromUrl();
+    const matchedSeason =
+      requestedSeasonStart &&
+      seasonsResponse.seasons.find(season => season.start_date === requestedSeasonStart);
+
+    const nextSeasonStart = matchedSeason
+      ? requestedSeasonStart
+      : seasonsResponse.current_season_start || seasonsResponse.seasons[0].start_date;
+
+    if (!nextSeasonStart) {
+      return;
+    }
+
+    selectedSeasonStart = nextSeasonStart;
+
+    if (replaceState || requestedSeasonStart !== nextSeasonStart) {
+      writeSeasonStartToUrl(nextSeasonStart, true);
+    }
+  }
+
+  function setSelectedSeasonStart(seasonStart: string): void {
+    if (!seasonStart || seasonStart === selectedSeasonStart) {
+      return;
+    }
+
+    selectedSeasonStart = seasonStart;
+    writeSeasonStartToUrl(seasonStart);
+  }
+
+  function handleSeasonChange(value: string | string[]): void {
+    if (typeof value !== 'string') {
+      return;
+    }
+
+    setSelectedSeasonStart(value);
   }
 
   function handlePopState(): void {
-    selectedDate = readDateFromUrl();
+    syncSelectedSeasonFromUrl();
   }
 
   function formatDate(dateString: string): string {
@@ -128,30 +188,37 @@
     return new Intl.NumberFormat().format(value);
   }
 
-  function formatSeasonName(name: string): string {
-    if (name in SEASON_TRANSLATION_KEYS) {
-      const key = SEASON_TRANSLATION_KEYS[name as keyof typeof SEASON_TRANSLATION_KEYS];
-      return t(key);
-    }
-
-    return name
-      .split(/[_-]/)
-      .filter(Boolean)
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
+  function getSpeciesInitials(commonName: string): string {
+    return commonName.slice(0, 2).toUpperCase();
   }
 
-  function buildDetectionsUrl(speciesName: string): string {
-    if (!resolvedSeason) {
+  function getPreviousSeasonStart(): string | null {
+    if (!seasonsResponse || selectedSeasonIndex <= 0) {
+      return null;
+    }
+
+    return seasonsResponse.seasons[selectedSeasonIndex - 1]?.start_date ?? null;
+  }
+
+  function getNextSeasonStart(): string | null {
+    if (!seasonsResponse || selectedSeasonIndex < 0) {
+      return null;
+    }
+
+    return seasonsResponse.seasons[selectedSeasonIndex + 1]?.start_date ?? null;
+  }
+
+  function buildDetectionsUrl(speciesName: string, sortBy: 'date_asc' | 'date_desc'): string {
+    if (!selectedSeason || !observedEndDate) {
       return '/ui/detections';
     }
 
     const params = new URLSearchParams({
       queryType: 'species',
       species: speciesName,
-      date: resolvedSeason.startDate,
-      start_date: resolvedSeason.startDate,
-      end_date: resolvedSeason.queryEndDate,
+      start_date: selectedSeason.start_date,
+      end_date: observedEndDate,
+      sortBy,
       numResults: DEFAULT_RESULTS_LIMIT,
       offset: '0',
     });
@@ -159,8 +226,8 @@
     return `/ui/detections?${params.toString()}`;
   }
 
-  function openDetections(speciesName: string): void {
-    navigation.navigate(buildDetectionsUrl(speciesName));
+  function openDetections(speciesName: string, sortBy: 'date_asc' | 'date_desc'): void {
+    navigation.navigate(buildDetectionsUrl(speciesName, sortBy));
   }
 
   function updateRowsWithThumbnails(
@@ -230,7 +297,36 @@
     }
   }
 
-  async function loadBirdMigrationData(currentSeason: BirdMigrationResolvedSeason): Promise<void> {
+  async function loadSeasonMetadata(): Promise<void> {
+    isMetadataLoading = true;
+    error = null;
+
+    try {
+      const response = await fetch(buildAppUrl('/api/v2/analytics/bird-migration/seasons'));
+      if (!response.ok) {
+        throw new Error(t('analytics.birdMigration.errors.loadFailed'));
+      }
+
+      seasonsResponse = (await response.json()) as BirdMigrationSeasonsResponse;
+      syncSelectedSeasonFromUrl(true);
+    } catch (loadError) {
+      logger.error('Failed to load bird migration seasons:', loadError);
+      error =
+        loadError instanceof Error
+          ? loadError.message
+          : t('analytics.birdMigration.errors.loadFailed');
+      seasonsResponse = null;
+      selectedSeasonStart = '';
+      migrationData = null;
+    } finally {
+      isMetadataLoading = false;
+    }
+  }
+
+  async function loadBirdMigrationData(
+    season: BirdMigrationSeason,
+    currentObservedEndDate: string
+  ): Promise<void> {
     const currentRequestId = ++requestId;
     isLoading = true;
     isThumbnailLoading = false;
@@ -238,8 +334,8 @@
 
     try {
       const params = new URLSearchParams({
-        start_date: currentSeason.startDate,
-        end_date: currentSeason.queryEndDate,
+        start_date: season.start_date,
+        end_date: currentObservedEndDate,
       });
 
       const [speciesResponse, dailyResponse, diversityResponse] = await Promise.all([
@@ -264,8 +360,9 @@
         species,
         daily.data ?? [],
         diversity.data ?? [],
-        currentSeason,
-        appState.seasonalTracking.windowDays
+        season,
+        currentObservedEndDate,
+        windowDays
       );
 
       if (migrationData.roster.length > 0) {
@@ -286,30 +383,18 @@
   }
 
   $effect(() => {
-    if (!hasMounted) {
-      return;
-    }
-
-    const currentDate = selectedDate;
-    const seasonalTracking = appState.seasonalTracking;
-    const currentResolvedSeason = resolveBirdMigrationSeason(seasonalTracking, currentDate);
-
-    resolvedSeason = currentResolvedSeason;
-
-    if (!currentResolvedSeason) {
+    if (!selectedSeason || !hasAvailableSeasons || !observedEndDate) {
       migrationData = null;
       isLoading = false;
       isThumbnailLoading = false;
-      error = null;
       return;
     }
 
-    void loadBirdMigrationData(currentResolvedSeason);
+    void loadBirdMigrationData(selectedSeason, observedEndDate);
   });
 
   onMount(() => {
-    selectedDate = readDateFromUrl();
-    hasMounted = true;
+    void loadSeasonMetadata();
     window.addEventListener('popstate', handlePopState);
 
     return () => {
@@ -331,26 +416,28 @@
             {t('analytics.birdMigration.subtitle')}
           </p>
 
-          {#if resolvedSeason}
+          {#if selectedSeason}
             <div
               class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--color-base-content)] opacity-70"
             >
               <span>
                 {t('analytics.birdMigration.season.current', {
-                  season: formatSeasonName(resolvedSeason.name),
+                  season: selectedSeason.label,
                 })}
               </span>
               <span>
                 {t('analytics.birdMigration.season.range', {
-                  start: formatDate(resolvedSeason.startDate),
-                  end: formatDate(resolvedSeason.endDate),
+                  start: formatDate(selectedSeason.start_date),
+                  end: formatDate(selectedSeason.end_date),
                 })}
               </span>
-              <span>
-                {t('analytics.birdMigration.season.dataThrough', {
-                  date: formatDate(resolvedSeason.queryEndDate),
-                })}
-              </span>
+              {#if selectedSeason.is_current}
+                <span>
+                  {t('analytics.birdMigration.season.observedThrough', {
+                    date: formatDate(observedEndDate),
+                  })}
+                </span>
+              {/if}
             </div>
           {/if}
         </div>
@@ -359,23 +446,50 @@
           <button
             type="button"
             class="btn btn-sm btn-outline"
-            onclick={() => resolvedSeason && setAnchorDate(resolvedSeason.previousAnchorDate)}
-            disabled={!resolvedSeason}
+            onclick={() => {
+              const previousSeasonStart = getPreviousSeasonStart();
+              if (previousSeasonStart) {
+                setSelectedSeasonStart(previousSeasonStart);
+              }
+            }}
+            disabled={!selectedSeason || selectedSeasonIndex <= 0}
           >
             <ChevronLeft class="size-4" />
             {t('analytics.birdMigration.controls.previousSeason')}
           </button>
-          <DatePicker
-            value={selectedDate}
-            onChange={setAnchorDate}
-            maxDate={getLocalDateString()}
-            size="sm"
-          />
+
+          <div class="w-64 min-w-48">
+            <SelectDropdown
+              options={seasonOptions}
+              value={selectedSeasonStart}
+              placeholder={t('analytics.birdMigration.controls.season')}
+              size="sm"
+              onChange={handleSeasonChange}
+            />
+          </div>
+
           <button
             type="button"
             class="btn btn-sm btn-outline"
-            onclick={() => resolvedSeason && setAnchorDate(resolvedSeason.nextAnchorDate)}
-            disabled={!resolvedSeason || resolvedSeason.nextAnchorDate > getLocalDateString()}
+            onclick={() =>
+              seasonsResponse?.current_season_start &&
+              setSelectedSeasonStart(seasonsResponse.current_season_start)}
+            disabled={!seasonsResponse?.current_season_start ||
+              seasonsResponse.current_season_start === selectedSeasonStart}
+          >
+            {t('analytics.birdMigration.controls.currentSeason')}
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            onclick={() => {
+              const nextSeasonStart = getNextSeasonStart();
+              if (nextSeasonStart) {
+                setSelectedSeasonStart(nextSeasonStart);
+              }
+            }}
+            disabled={!selectedSeason || !getNextSeasonStart()}
           >
             {t('analytics.birdMigration.controls.nextSeason')}
             <ChevronRight class="size-4" />
@@ -385,7 +499,11 @@
     </div>
   </div>
 
-  {#if !hasSeasonalTracking}
+  {#if error}
+    <ErrorAlert message={error} />
+  {/if}
+
+  {#if !isMetadataLoading && seasonsResponse && !hasAvailableSeasons}
     <div class="card bg-[var(--color-base-100)] shadow-xs">
       <div class="card-body">
         <EmptyState
@@ -394,17 +512,13 @@
         />
       </div>
     </div>
-  {:else}
-    {#if error}
-      <ErrorAlert message={error} />
-    {/if}
-
+  {:else if hasAvailableSeasons && selectedSeason}
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
       <StatCard
         title={t('analytics.birdMigration.stats.seasonSpecies')}
         value={migrationData ? formatInteger(migrationData.summary.speciesCount) : 0}
-        subtitle={resolvedSeason ? formatSeasonName(resolvedSeason.name) : undefined}
-        {isLoading}
+        subtitle={selectedSeason.label}
+        isLoading={isMetadataLoading || isLoading}
         iconClassName="bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
       >
         {#snippet icon()}
@@ -415,10 +529,8 @@
       <StatCard
         title={t('analytics.birdMigration.stats.recentArrivals')}
         value={migrationData ? formatInteger(migrationData.summary.recentArrivalsCount) : 0}
-        subtitle={t('analytics.birdMigration.stats.windowDays', {
-          days: appState.seasonalTracking.windowDays,
-        })}
-        {isLoading}
+        subtitle={t('analytics.birdMigration.stats.windowDays', { days: windowDays })}
+        isLoading={isMetadataLoading || isLoading}
         iconClassName="bg-[var(--color-success)]/15 text-[var(--color-success)]"
       >
         {#snippet icon()}
@@ -429,10 +541,8 @@
       <StatCard
         title={t('analytics.birdMigration.stats.quietSpecies')}
         value={migrationData ? formatInteger(migrationData.summary.quietSpeciesCount) : 0}
-        subtitle={t('analytics.birdMigration.stats.windowDays', {
-          days: appState.seasonalTracking.windowDays,
-        })}
-        {isLoading}
+        subtitle={t('analytics.birdMigration.stats.windowDays', { days: windowDays })}
+        isLoading={isMetadataLoading || isLoading}
         iconClassName="bg-[var(--color-warning)]/15 text-[var(--color-warning)]"
       >
         {#snippet icon()}
@@ -443,14 +553,27 @@
       <StatCard
         title={t('analytics.birdMigration.stats.seasonDetections')}
         value={migrationData ? formatInteger(migrationData.summary.detectionCount) : 0}
-        subtitle={resolvedSeason ? formatDate(resolvedSeason.queryEndDate) : undefined}
-        {isLoading}
+        subtitle={selectedSeason.is_current
+          ? t('analytics.birdMigration.season.observedThrough', {
+              date: formatDate(observedEndDate),
+            })
+          : formatDate(selectedSeason.end_date)}
+        isLoading={isMetadataLoading || isLoading}
         iconClassName="bg-[var(--color-secondary)]/15 text-[var(--color-secondary)]"
       >
         {#snippet icon()}
           <Volume2 class="size-6" />
         {/snippet}
       </StatCard>
+    </div>
+
+    <div class="card bg-[var(--color-base-100)] shadow-xs">
+      <div class="card-body p-4 md:p-6">
+        <div class="space-y-2 text-sm text-[var(--color-base-content)] opacity-80">
+          <p>{t('analytics.birdMigration.tables.explainerRecent', { days: windowDays })}</p>
+          <p>{t('analytics.birdMigration.tables.explainerQuiet', { days: windowDays })}</p>
+        </div>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -537,7 +660,7 @@
                           <button
                             type="button"
                             class="flex items-center gap-3 text-left"
-                            onclick={() => openDetections(species.scientific_name)}
+                            onclick={() => openDetections(species.scientific_name, 'date_asc')}
                           >
                             {#if species.thumbnail_url}
                               <img
@@ -550,7 +673,7 @@
                               <div
                                 class="size-10 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center text-xs font-semibold"
                               >
-                                {species.common_name.slice(0, 2).toUpperCase()}
+                                {getSpeciesInitials(species.common_name)}
                               </div>
                             {/if}
                             <span>
@@ -561,7 +684,9 @@
                             </span>
                           </button>
                         </td>
-                        <td>{formatDateTime(species.first_heard)}</td>
+                        <td title={formatDateTime(species.first_heard)}>
+                          {formatDate(species.first_heard_date)}
+                        </td>
                         <td>{formatInteger(species.active_days)}</td>
                         <td>{formatInteger(species.count)}</td>
                       </tr>
@@ -611,7 +736,7 @@
                           <button
                             type="button"
                             class="flex items-center gap-3 text-left"
-                            onclick={() => openDetections(species.scientific_name)}
+                            onclick={() => openDetections(species.scientific_name, 'date_desc')}
                           >
                             {#if species.thumbnail_url}
                               <img
@@ -624,7 +749,7 @@
                               <div
                                 class="size-10 rounded-lg bg-[var(--color-warning)]/10 text-[var(--color-warning)] flex items-center justify-center text-xs font-semibold"
                               >
-                                {species.common_name.slice(0, 2).toUpperCase()}
+                                {getSpeciesInitials(species.common_name)}
                               </div>
                             {/if}
                             <span>
@@ -635,7 +760,9 @@
                             </span>
                           </button>
                         </td>
-                        <td>{formatDateTime(species.last_heard)}</td>
+                        <td title={formatDateTime(species.last_heard)}>
+                          {formatDate(species.last_heard_date)}
+                        </td>
                         <td>{formatInteger(species.days_since_last_seen)}</td>
                         <td>{formatInteger(species.active_days)}</td>
                       </tr>
@@ -689,7 +816,7 @@
                         <button
                           type="button"
                           class="flex items-center gap-3 text-left"
-                          onclick={() => openDetections(species.scientific_name)}
+                          onclick={() => openDetections(species.scientific_name, 'date_desc')}
                         >
                           {#if species.thumbnail_url}
                             <img
@@ -702,7 +829,7 @@
                             <div
                               class="size-10 rounded-lg bg-[var(--color-secondary)]/10 text-[var(--color-secondary)] flex items-center justify-center text-xs font-semibold"
                             >
-                              {species.common_name.slice(0, 2).toUpperCase()}
+                              {getSpeciesInitials(species.common_name)}
                             </div>
                           {/if}
                           <span>
@@ -713,8 +840,12 @@
                           </span>
                         </button>
                       </td>
-                      <td>{formatDateTime(species.first_heard)}</td>
-                      <td>{formatDateTime(species.last_heard)}</td>
+                      <td title={formatDateTime(species.first_heard)}>
+                        {formatDate(species.first_heard_date)}
+                      </td>
+                      <td title={formatDateTime(species.last_heard)}>
+                        {formatDate(species.last_heard_date)}
+                      </td>
                       <td>{formatInteger(species.active_days)}</td>
                       <td>{formatInteger(species.count)}</td>
                     </tr>

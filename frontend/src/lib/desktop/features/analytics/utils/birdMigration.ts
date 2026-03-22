@@ -1,16 +1,13 @@
-import type { PublicSeason, PublicSeasonalTracking } from '$lib/stores/appState.svelte';
 import { addDays, getLocalDateString, parseLocalDateString } from '$lib/utils/date';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export interface BirdMigrationResolvedSeason {
+export interface BirdMigrationSeason {
   name: string;
-  anchorDate: string;
-  startDate: string;
-  endDate: string;
-  queryEndDate: string;
-  previousAnchorDate: string;
-  nextAnchorDate: string;
+  label: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
 }
 
 export interface BirdMigrationSpeciesSummary {
@@ -71,10 +68,6 @@ export interface BirdMigrationDerivedData {
   activityTimeline: BirdMigrationActivityDatum[];
 }
 
-function createSeasonDate(year: number, season: PublicSeason): Date {
-  return new Date(year, season.startMonth - 1, season.startDay, 12, 0, 0, 0);
-}
-
 function extractLocalDate(datetime: string): string {
   const dateMatch = datetime.match(/^(\d{4}-\d{2}-\d{2})/);
   if (dateMatch) {
@@ -85,57 +78,22 @@ function extractLocalDate(datetime: string): string {
   return parsed ? getLocalDateString(parsed) : '';
 }
 
-function getSortedSeasonEntries(
-  seasons: Record<string, PublicSeason>
-): Array<[string, PublicSeason]> {
-  return Object.entries(seasons).sort(([nameA, seasonA], [nameB, seasonB]) => {
-    if (seasonA.startMonth !== seasonB.startMonth) {
-      return seasonA.startMonth - seasonB.startMonth;
-    }
-    if (seasonA.startDay !== seasonB.startDay) {
-      return seasonA.startDay - seasonB.startDay;
-    }
-    return nameA.localeCompare(nameB);
-  });
+export function findBirdMigrationSeason(
+  seasons: BirdMigrationSeason[],
+  seasonStart: string
+): BirdMigrationSeason | null {
+  return seasons.find(season => season.start_date === seasonStart) ?? null;
 }
 
-function getPreviousOrCurrentSeasonStart(anchor: Date, name: string, season: PublicSeason) {
-  const start = createSeasonDate(anchor.getFullYear(), season);
-  if (start.getTime() > anchor.getTime()) {
-    start.setFullYear(start.getFullYear() - 1);
+export function getBirdMigrationObservedEndDate(
+  season: BirdMigrationSeason,
+  today: string = getLocalDateString()
+): string {
+  if (season.is_current && today < season.end_date) {
+    return today;
   }
 
-  return { name, season, start };
-}
-
-function getNextSeasonStart(after: Date, entries: Array<[string, PublicSeason]>) {
-  const candidates = entries.map(([name, season]) => {
-    const start = createSeasonDate(after.getFullYear(), season);
-    if (start.getTime() <= after.getTime()) {
-      start.setFullYear(start.getFullYear() + 1);
-    }
-
-    return { name, season, start };
-  });
-
-  return candidates.reduce((closest, candidate) =>
-    candidate.start.getTime() < closest.start.getTime() ? candidate : closest
-  );
-}
-
-function getPreviousSeasonStart(before: Date, entries: Array<[string, PublicSeason]>) {
-  const candidates = entries.map(([name, season]) => {
-    const start = createSeasonDate(before.getFullYear(), season);
-    if (start.getTime() >= before.getTime()) {
-      start.setFullYear(start.getFullYear() - 1);
-    }
-
-    return { name, season, start };
-  });
-
-  return candidates.reduce((closest, candidate) =>
-    candidate.start.getTime() > closest.start.getTime() ? candidate : closest
-  );
+  return season.end_date;
 }
 
 export function getBirdMigrationDayDifference(fromDate: string, toDate: string): number {
@@ -163,52 +121,9 @@ export function getBirdMigrationDateRange(startDate: string, endDate: string): s
   return dates;
 }
 
-export function resolveBirdMigrationSeason(
-  seasonalTracking: PublicSeasonalTracking,
-  anchorDate: string
-): BirdMigrationResolvedSeason | null {
-  if (!seasonalTracking.enabled) {
-    return null;
-  }
-
-  const entries = getSortedSeasonEntries(seasonalTracking.seasons);
-  if (entries.length === 0) {
-    return null;
-  }
-
-  const anchor = parseLocalDateString(anchorDate);
-  if (!anchor) {
-    return null;
-  }
-
-  const resolved = entries
-    .map(([name, season]) => getPreviousOrCurrentSeasonStart(anchor, name, season))
-    .reduce((current, candidate) =>
-      candidate.start.getTime() > current.start.getTime() ? candidate : current
-    );
-
-  const previousSeason = getPreviousSeasonStart(resolved.start, entries);
-  const nextSeason = getNextSeasonStart(resolved.start, entries);
-  const startDate = getLocalDateString(resolved.start);
-  const endDate = addDays(getLocalDateString(nextSeason.start), -1);
-  const queryEndDate = anchorDate < endDate ? anchorDate : endDate;
-  const previousAnchorDate = getLocalDateString(previousSeason.start);
-  const nextAnchorDate = getLocalDateString(nextSeason.start);
-
-  return {
-    name: resolved.name,
-    anchorDate,
-    startDate,
-    endDate,
-    queryEndDate,
-    previousAnchorDate,
-    nextAnchorDate,
-  };
-}
-
 export function deriveBirdMigrationRoster(
   species: BirdMigrationSpeciesSummary[],
-  anchorDate: string
+  observedEndDate: string
 ): BirdMigrationSpeciesRecord[] {
   return [...species]
     .map(item => {
@@ -219,8 +134,8 @@ export function deriveBirdMigrationRoster(
         ...item,
         first_heard_date: firstHeardDate,
         last_heard_date: lastHeardDate,
-        days_since_first_seen: getBirdMigrationDayDifference(firstHeardDate, anchorDate),
-        days_since_last_seen: getBirdMigrationDayDifference(lastHeardDate, anchorDate),
+        days_since_first_seen: getBirdMigrationDayDifference(firstHeardDate, observedEndDate),
+        days_since_last_seen: getBirdMigrationDayDifference(lastHeardDate, observedEndDate),
       };
     })
     .sort((left, right) => {
@@ -280,10 +195,11 @@ export function deriveBirdMigrationAnalytics(
   species: BirdMigrationSpeciesSummary[],
   dailyDetections: BirdMigrationDailyDetections[],
   dailyDiversity: BirdMigrationDailyDiversity[],
-  resolvedSeason: BirdMigrationResolvedSeason,
+  season: BirdMigrationSeason,
+  observedEndDate: string,
   windowDays: number
 ): BirdMigrationDerivedData {
-  const roster = deriveBirdMigrationRoster(species, resolvedSeason.queryEndDate);
+  const roster = deriveBirdMigrationRoster(species, observedEndDate);
   const recentArrivals = roster
     .filter(item => item.days_since_first_seen <= windowDays)
     .sort((left, right) => {
@@ -310,14 +226,14 @@ export function deriveBirdMigrationAnalytics(
 
   const arrivalTimeline = buildBirdMigrationArrivalTimeline(
     roster,
-    resolvedSeason.startDate,
-    resolvedSeason.queryEndDate
+    season.start_date,
+    observedEndDate
   );
   const activityTimeline = buildBirdMigrationActivityTimeline(
     dailyDetections,
     dailyDiversity,
-    resolvedSeason.startDate,
-    resolvedSeason.queryEndDate
+    season.start_date,
+    observedEndDate
   );
   const detectionCount = roster.reduce((sum, item) => sum + item.count, 0);
 

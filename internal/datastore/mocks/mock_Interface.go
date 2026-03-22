@@ -3284,6 +3284,62 @@ func (_c *MockInterface_GetSpeciesFirstDetectionInPeriod_Call) RunAndReturn(run 
 	return _c
 }
 
+// GetEarliestDetectionDate provides a mock function with given fields: ctx
+func (_m *MockInterface) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEarliestDetectionDate")
+	}
+
+	var r0 time.Time
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (time.Time, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) time.Time); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(time.Time)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInterface_GetEarliestDetectionDate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEarliestDetectionDate'
+type MockInterface_GetEarliestDetectionDate_Call struct {
+	*mock.Call
+}
+
+// GetEarliestDetectionDate is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockInterface_Expecter) GetEarliestDetectionDate(ctx interface{}) *MockInterface_GetEarliestDetectionDate_Call {
+	return &MockInterface_GetEarliestDetectionDate_Call{Call: _e.mock.On("GetEarliestDetectionDate", ctx)}
+}
+
+func (_c *MockInterface_GetEarliestDetectionDate_Call) Run(run func(ctx context.Context)) *MockInterface_GetEarliestDetectionDate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockInterface_GetEarliestDetectionDate_Call) Return(_a0 time.Time, _a1 error) *MockInterface_GetEarliestDetectionDate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInterface_GetEarliestDetectionDate_Call) RunAndReturn(run func(context.Context) (time.Time, error)) *MockInterface_GetEarliestDetectionDate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSpeciesSummaryData provides a mock function with given fields: ctx, startDate, endDate
 func (_m *MockInterface) GetSpeciesSummaryData(ctx context.Context, startDate string, endDate string) ([]datastore.SpeciesSummaryData, error) {
 	ret := _m.Called(ctx, startDate, endDate)

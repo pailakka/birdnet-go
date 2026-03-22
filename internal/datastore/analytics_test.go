@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tphakala/birdnet-go/internal/datastore/entities"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -316,6 +317,60 @@ func TestGetSpeciesSummaryData(t *testing.T) {
 		assert.Empty(t, nsCommon.CommonName, "NULL common_name should be converted to empty string")
 		assert.Equal(t, "nulcom", nsCommon.SpeciesCode)
 		assert.Equal(t, 1, nsCommon.ActiveDays)
+	})
+}
+
+func TestGetEarliestDetectionDate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns earliest non false positive date", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+
+		testNotes := []Note{
+			{
+				ID:             1,
+				Date:           "2024-01-10",
+				Time:           "08:00:00",
+				ScientificName: "False Positive Bird",
+				CommonName:     "False Positive Bird",
+				Confidence:     0.70,
+			},
+			{
+				ID:             2,
+				Date:           "2024-01-12",
+				Time:           "09:30:00",
+				ScientificName: "Parus major",
+				CommonName:     "Great Tit",
+				Confidence:     0.93,
+			},
+		}
+
+		for i := range testNotes {
+			err := ds.DB.Create(&testNotes[i]).Error
+			require.NoError(t, err)
+		}
+
+		err := ds.DB.Create(&NoteReview{
+			NoteID:   1,
+			Verified: string(entities.VerificationFalsePositive),
+		}).Error
+		require.NoError(t, err)
+
+		earliestDate, err := ds.GetEarliestDetectionDate(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, "2024-01-12", earliestDate.Format(time.DateOnly))
+	})
+
+	t.Run("returns zero time when there are no detections", func(t *testing.T) {
+		t.Parallel()
+
+		ds := setupTestDB(t)
+
+		earliestDate, err := ds.GetEarliestDetectionDate(t.Context())
+		require.NoError(t, err)
+		assert.True(t, earliestDate.IsZero())
 	})
 }
 

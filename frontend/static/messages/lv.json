@@ -742,7 +742,11 @@
       "hourlyRange": "Stundu rezultāti no {startHour}:00 līdz {endHour}:00, {date}",
       "species": "Rezultāti sugai {species}, {date}",
       "search": "Meklēšanas rezultāti vaicājumam \"{query}\"",
-      "allDetections": "Visas atklāšanas datumā {date}"
+      "allDetections": "Visas atklāšanas datumā {date}",
+      "hourlyDateRange": "Results for hour {hour}:00 from {startDate} to {endDate}",
+      "hourlyRangeDateRange": "Results for hours {startHour}:00-{endHour}:00 from {startDate} to {endDate}",
+      "speciesDateRange": "Results for {species} from {startDate} to {endDate}",
+      "allDetectionsDateRange": "All detections from {startDate} to {endDate}"
     },
     "detail": {
       "species": "Suga",
@@ -1622,11 +1626,14 @@
       "season": {
         "current": "Season: {season}",
         "range": "Season range: {start} to {end}",
-        "dataThrough": "Data through {date}"
+        "dataThrough": "Data through {date}",
+        "observedThrough": "Observed through {date}"
       },
       "controls": {
         "previousSeason": "Previous Season",
-        "nextSeason": "Next Season"
+        "nextSeason": "Next Season",
+        "season": "Season",
+        "currentSeason": "Current Season"
       },
       "states": {
         "disabledTitle": "Seasonal tracking is unavailable",
@@ -1678,7 +1685,9 @@
           "detections": "Detections",
           "daysQuiet": "Days Quiet",
           "date": "Date"
-        }
+        },
+        "explainerRecent": "Recent Arrivals: first heard within the last {days} days of the observed season range.",
+        "explainerQuiet": "Quiet Species: not heard within the last {days} days of the observed season range."
       },
       "errors": {
         "loadFailed": "Failed to load bird migration analytics. Please try again."

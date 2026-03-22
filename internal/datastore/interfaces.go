@@ -178,6 +178,7 @@ type Interface interface {
 	GetLockedNotesClipPaths() ([]string, error)
 	CountHourlyDetections(date, hour string, duration int) (int64, error)
 	// Analytics methods
+	GetEarliestDetectionDate(ctx context.Context) (time.Time, error)
 	GetSpeciesSummaryData(ctx context.Context, startDate, endDate string) ([]SpeciesSummaryData, error)
 	GetHourlyAnalyticsData(ctx context.Context, date string, species string) ([]HourlyAnalyticsData, error)
 	GetDailyAnalyticsData(ctx context.Context, startDate, endDate string, species string) ([]DailyAnalyticsData, error)

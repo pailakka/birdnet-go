@@ -2,57 +2,40 @@ import { describe, expect, it } from 'vitest';
 
 import {
   deriveBirdMigrationAnalytics,
-  resolveBirdMigrationSeason,
+  findBirdMigrationSeason,
+  getBirdMigrationObservedEndDate,
   type BirdMigrationDailyDetections,
   type BirdMigrationDailyDiversity,
+  type BirdMigrationSeason,
   type BirdMigrationSpeciesSummary,
 } from './birdMigration';
 
-const seasonalTracking = {
-  enabled: true,
-  windowDays: 7,
-  seasons: {
-    spring: { startMonth: 3, startDay: 20 },
-    summer: { startMonth: 6, startDay: 21 },
-    fall: { startMonth: 9, startDay: 22 },
-    winter: { startMonth: 12, startDay: 21 },
+const seasons: BirdMigrationSeason[] = [
+  {
+    name: 'winter',
+    label: 'Winter 2025-2026',
+    start_date: '2025-12-21',
+    end_date: '2026-02-28',
+    is_current: false,
   },
-};
-
-const analyticsSeasonalTracking = {
-  enabled: true,
-  windowDays: 7,
-  seasons: {
-    spring: { startMonth: 3, startDay: 1 },
-    summer: { startMonth: 6, startDay: 1 },
-    fall: { startMonth: 9, startDay: 1 },
-    winter: { startMonth: 12, startDay: 1 },
+  {
+    name: 'spring',
+    label: 'Spring 2026',
+    start_date: '2026-03-01',
+    end_date: '2026-06-20',
+    is_current: true,
   },
-};
+];
 
-describe('resolveBirdMigrationSeason', () => {
-  it('resolves winter across a year boundary', () => {
-    const season = resolveBirdMigrationSeason(seasonalTracking, '2026-01-15');
-
-    expect(season).not.toBeNull();
-    expect(season?.name).toBe('winter');
-    expect(season?.startDate).toBe('2025-12-21');
-    expect(season?.endDate).toBe('2026-03-19');
-    expect(season?.previousAnchorDate).toBe('2025-09-22');
-    expect(season?.nextAnchorDate).toBe('2026-03-20');
-    expect(season?.queryEndDate).toBe('2026-01-15');
+describe('bird migration season helpers', () => {
+  it('finds a season by start date', () => {
+    expect(findBirdMigrationSeason(seasons, '2026-03-01')).toEqual(seasons[1]);
+    expect(findBirdMigrationSeason(seasons, '2026-06-21')).toBeNull();
   });
 
-  it('returns null when seasonal tracking is disabled', () => {
-    const season = resolveBirdMigrationSeason(
-      {
-        ...seasonalTracking,
-        enabled: false,
-      },
-      '2026-03-21'
-    );
-
-    expect(season).toBeNull();
+  it('clamps the observed end date for the current season', () => {
+    expect(getBirdMigrationObservedEndDate(seasons[1], '2026-03-21')).toBe('2026-03-21');
+    expect(getBirdMigrationObservedEndDate(seasons[0], '2026-03-21')).toBe('2026-02-28');
   });
 });
 
@@ -108,15 +91,13 @@ describe('deriveBirdMigrationAnalytics', () => {
   ];
 
   it('derives recent arrivals, quiet species, roster sorting, and timelines', () => {
-    const resolvedSeason = resolveBirdMigrationSeason(analyticsSeasonalTracking, '2026-03-21');
-    expect(resolvedSeason).not.toBeNull();
-
     const analytics = deriveBirdMigrationAnalytics(
       species,
       dailyDetections,
       dailyDiversity,
-      resolvedSeason!,
-      analyticsSeasonalTracking.windowDays
+      seasons[1],
+      '2026-03-21',
+      7
     );
 
     expect(analytics.summary.speciesCount).toBe(3);

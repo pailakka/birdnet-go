@@ -2168,6 +2168,30 @@ func (ds *Datastore) parseDateRange(startDate, endDate string) (start, end int64
 	return start, end, nil
 }
 
+// GetEarliestDetectionDate retrieves the earliest non-false-positive detection time.
+func (ds *Datastore) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	type earliestDetectionResult struct {
+		EarliestTime int64 `gorm:"column:earliest_time"`
+	}
+
+	var result earliestDetectionResult
+	err := ds.manager.DB().WithContext(ctx).
+		Table("detections d").
+		Joins("LEFT JOIN detection_reviews dr ON d.id = dr.detection_id").
+		Select("MIN(d.detected_at) as earliest_time").
+		Where("(dr.verified IS NULL OR dr.verified != ?)", string(entities.VerificationFalsePositive)).
+		Scan(&result).Error
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if result.EarliestTime == 0 {
+		return time.Time{}, nil
+	}
+
+	return time.Unix(result.EarliestTime, 0).In(ds.timezone), nil
+}
+
 // GetSpeciesSummaryData retrieves species summary data.
 func (ds *Datastore) GetSpeciesSummaryData(ctx context.Context, startDate, endDate string) ([]datastore.SpeciesSummaryData, error) {
 	start, end, err := ds.parseDateRange(startDate, endDate)
