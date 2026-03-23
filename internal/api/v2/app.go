@@ -28,19 +28,18 @@ const appMetadataKeyLastSeenVersion = "last_seen_version"
 // AppConfigResponse represents the application configuration returned to the frontend.
 // This replaces the server-side injected window.BIRDNET_CONFIG.
 type AppConfigResponse struct {
-	CSRFToken        string                `json:"csrfToken"`
-	Security         SecurityConfigDTO     `json:"security"`
-	SeasonalTracking SeasonalTrackingDTO   `json:"seasonalTracking"`
-	Version          string                `json:"version"`
-	BasePath         string                `json:"basePath"`                  // reverse proxy prefix for frontend URL construction
-	ColorScheme      string                `json:"colorScheme,omitempty"`     // admin-configured color scheme for all visitors
-	CustomColors     *conf.CustomColors    `json:"customColors,omitempty"`    // custom scheme hex colors (when colorScheme is "custom")
-	LogoStyle        string                `json:"logoStyle,omitempty"`       // admin-configured logo style: "gradient" or "solid"
-	LiveSpectrogram  bool                  `json:"liveSpectrogram"`           // auto-start live spectrogram on dashboard
-	Layout           *conf.DashboardLayout `json:"layout,omitempty"`          // dashboard element layout for guest/pre-auth rendering
-	FreshInstall     bool                  `json:"freshInstall"`              // true when this is a brand-new installation
-	NewVersion       bool                  `json:"newVersion"`                // true when the app was upgraded since last dismiss
-	PreviousVersion  string                `json:"previousVersion,omitempty"` // last version the user acknowledged
+	CSRFToken       string                `json:"csrfToken"`
+	Security        SecurityConfigDTO     `json:"security"`
+	Version         string                `json:"version"`
+	BasePath        string                `json:"basePath"`                  // reverse proxy prefix for frontend URL construction
+	ColorScheme     string                `json:"colorScheme,omitempty"`     // admin-configured color scheme for all visitors
+	CustomColors    *conf.CustomColors    `json:"customColors,omitempty"`    // custom scheme hex colors (when colorScheme is "custom")
+	LogoStyle       string                `json:"logoStyle,omitempty"`       // admin-configured logo style: "gradient" or "solid"
+	LiveSpectrogram bool                  `json:"liveSpectrogram"`           // auto-start live spectrogram on dashboard
+	Layout          *conf.DashboardLayout `json:"layout,omitempty"`          // dashboard element layout for guest/pre-auth rendering
+	FreshInstall    bool                  `json:"freshInstall"`              // true when this is a brand-new installation
+	NewVersion      bool                  `json:"newVersion"`                // true when the app was upgraded since last dismiss
+	PreviousVersion string                `json:"previousVersion,omitempty"` // last version the user acknowledged
 }
 
 // SecurityConfigDTO represents the security configuration for the frontend.
@@ -60,19 +59,6 @@ type PublicAccessDTO struct {
 type AuthConfigDTO struct {
 	BasicEnabled     bool     `json:"basicEnabled"`
 	EnabledProviders []string `json:"enabledProviders"`
-}
-
-// SeasonalTrackingDTO exposes the public subset of seasonal tracking configuration.
-type SeasonalTrackingDTO struct {
-	Enabled    bool                 `json:"enabled"`
-	WindowDays int                  `json:"windowDays"`
-	Seasons    map[string]SeasonDTO `json:"seasons"`
-}
-
-// SeasonDTO represents a public season definition.
-type SeasonDTO struct {
-	StartMonth int `json:"startMonth"`
-	StartDay   int `json:"startDay"`
 }
 
 // initAppRoutes registers application-level API endpoints
@@ -145,8 +131,6 @@ func (c *Controller) GetAppConfig(ctx echo.Context) error {
 
 	// Determine wizard state (freshInstall, newVersion, previousVersion)
 	freshInstall, newVersion, previousVersion := c.determineWizardState(ctx.Request().Context())
-	seasonalTracking := buildPublicSeasonalTrackingConfig(c.Settings)
-
 	// Build response
 	response := AppConfigResponse{
 		CSRFToken: csrfToken,
@@ -161,16 +145,15 @@ func (c *Controller) GetAppConfig(ctx echo.Context) error {
 				LiveAudio: c.Settings.Security.PublicAccess.LiveAudio,
 			},
 		},
-		SeasonalTracking: seasonalTracking,
-		Version:          c.Settings.Version,
-		BasePath:         basePath,
-		ColorScheme:      c.Settings.Realtime.Dashboard.ColorScheme,
-		CustomColors:     c.Settings.Realtime.Dashboard.CustomColors,
-		LogoStyle:        c.Settings.Realtime.Dashboard.LogoStyle,
-		LiveSpectrogram:  c.Settings.Realtime.Dashboard.LiveSpectrogram,
-		FreshInstall:     freshInstall,
-		NewVersion:       newVersion,
-		PreviousVersion:  previousVersion,
+		Version:         c.Settings.Version,
+		BasePath:        basePath,
+		ColorScheme:     c.Settings.Realtime.Dashboard.ColorScheme,
+		CustomColors:    c.Settings.Realtime.Dashboard.CustomColors,
+		LogoStyle:       c.Settings.Realtime.Dashboard.LogoStyle,
+		LiveSpectrogram: c.Settings.Realtime.Dashboard.LiveSpectrogram,
+		FreshInstall:    freshInstall,
+		NewVersion:      newVersion,
+		PreviousVersion: previousVersion,
 	}
 
 	// Include dashboard layout for guest/pre-auth rendering if configured
@@ -185,34 +168,6 @@ func (c *Controller) GetAppConfig(ctx echo.Context) error {
 	)
 
 	return ctx.JSON(http.StatusOK, response)
-}
-
-func buildPublicSeasonalTrackingConfig(settings *conf.Settings) SeasonalTrackingDTO {
-	dto := SeasonalTrackingDTO{
-		Seasons: make(map[string]SeasonDTO),
-	}
-	if settings == nil {
-		return dto
-	}
-
-	seasonalTracking := settings.Realtime.SpeciesTracking.SeasonalTracking
-	if seasonalTracking.Enabled {
-		seasonalTracking = conf.GetSeasonalTrackingWithHemisphere(
-			seasonalTracking,
-			settings.BirdNET.Latitude,
-		)
-	}
-
-	dto.Enabled = seasonalTracking.Enabled
-	dto.WindowDays = seasonalTracking.WindowDays
-	for name, season := range seasonalTracking.Seasons {
-		dto.Seasons[name] = SeasonDTO{
-			StartMonth: season.StartMonth,
-			StartDay:   season.StartDay,
-		}
-	}
-
-	return dto
 }
 
 // determineWizardState computes the freshInstall, newVersion, and previousVersion fields

@@ -10,7 +10,20 @@ const { navigateMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/i18n', () => ({
-  t: vi.fn((key: string) => key),
+  t: vi.fn((key: string) => {
+    const translations = new Map<string, string>([
+      ['settings.species.tracking.seasonal.seasons.spring', 'Spring'],
+      ['analytics.birdMigration.states.disabledTitle', 'Bird migration unavailable'],
+      [
+        'analytics.birdMigration.states.disabledDescription',
+        'Seasonal tracking is disabled or has no configured seasons.',
+      ],
+      ['analytics.birdMigration.controls.currentSeason', 'Current Season'],
+      ['analytics.birdMigration.tables.disappearances', 'Disappearances'],
+    ]);
+
+    return translations.get(key) ?? key;
+  }),
 }));
 
 vi.mock('$lib/stores/navigation.svelte', () => ({
@@ -61,11 +74,9 @@ describe('BirdMigration page', () => {
 
     render(BirdMigration);
 
+    expect(await screen.findByText('Bird migration unavailable')).toBeInTheDocument();
     expect(
-      await screen.findByText('analytics.birdMigration.states.disabledTitle')
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('analytics.birdMigration.states.disabledDescription')
+      screen.getByText('Seasonal tracking is disabled or has no configured seasons.')
     ).toBeInTheDocument();
   });
 
@@ -82,7 +93,6 @@ describe('BirdMigration page', () => {
           seasons: [
             {
               name: 'spring',
-              label: 'Spring 2026',
               start_date: '2026-03-01',
               end_date: '2026-05-31',
               is_current: true,
@@ -155,10 +165,8 @@ describe('BirdMigration page', () => {
     render(BirdMigration);
 
     expect((await screen.findAllByText('Spring 2026')).length).toBeGreaterThan(0);
-    expect(screen.getByText('analytics.birdMigration.controls.currentSeason')).toBeInTheDocument();
-    expect(
-      await screen.findByText('analytics.birdMigration.tables.disappearances')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Current Season')).toBeInTheDocument();
+    expect(await screen.findByText('Disappearances')).toBeInTheDocument();
 
     const swanButtons = await screen.findAllByRole('button', { name: /Whooper Swan/i });
     await fireEvent.click(swanButtons[0]);
