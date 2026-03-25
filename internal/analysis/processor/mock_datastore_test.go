@@ -266,6 +266,16 @@ func (m *ActionMockDatastore) GetLockedNotesClipPaths() ([]string, error) {
 func (m *ActionMockDatastore) CountHourlyDetections(_, _ string, _ int) (int64, error) {
 	return 0, nil
 }
+func (m *ActionMockDatastore) GetEarliestDetectionDate(_ context.Context) (time.Time, error) {
+	return time.Time{}, nil
+}
+func (m *ActionMockDatastore) GetBirdMigrationDisappearances(
+	_ context.Context,
+	_, _ string,
+	_ int,
+) ([]datastore.BirdMigrationDisappearanceData, error) {
+	return nil, nil
+}
 func (m *ActionMockDatastore) GetSpeciesSummaryData(_ context.Context, _, _ string) ([]datastore.SpeciesSummaryData, error) {
 	return nil, nil
 }

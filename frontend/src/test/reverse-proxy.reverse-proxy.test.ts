@@ -86,6 +86,7 @@ const SPA_ROUTES = [
   '/ui/dashboard',
   '/ui/notifications',
   '/ui/analytics',
+  '/ui/analytics/bird-migration',
   '/ui/analytics/advanced',
   '/ui/analytics/species',
   '/ui/search',

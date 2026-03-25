@@ -138,6 +138,8 @@ describe('App Config API', () => {
 
     const config = await response.json();
     expect(config).toBeDefined();
+    expect(config).toHaveProperty('security');
+    expect(config).not.toHaveProperty('seasonalTracking');
   });
 
   it('can fetch available locales', async () => {
@@ -237,7 +239,12 @@ describe('Analytics API', () => {
     expect(response.ok).toBe(true);
 
     const summary = await response.json();
-    expect(summary).toBeDefined();
+    expect(Array.isArray(summary)).toBe(true);
+    if (!Array.isArray(summary)) {
+      return;
+    }
+
+    expect(summary.length === 0 || 'active_days' in summary[0]).toBe(true);
   });
 
   it('can fetch daily species summary', async () => {

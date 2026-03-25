@@ -141,7 +141,6 @@ func (c *Controller) GetAppConfig(ctx echo.Context) error {
 
 	// Determine wizard state (freshInstall, newVersion, previousVersion)
 	freshInstall, newVersion, previousVersion := c.determineWizardState(ctx.Request().Context())
-
 	// Build response
 	response := AppConfigResponse{
 		CSRFToken: csrfToken,

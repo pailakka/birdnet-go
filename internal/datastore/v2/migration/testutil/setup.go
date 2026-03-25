@@ -734,6 +734,16 @@ func (s *testLegacyInterface) GetLockedNotesClipPaths() ([]string, error)   { re
 func (s *testLegacyInterface) CountHourlyDetections(_, _ string, _ int) (int64, error) {
 	return 0, nil
 }
+func (s *testLegacyInterface) GetEarliestDetectionDate(_ context.Context) (time.Time, error) {
+	return time.Time{}, nil
+}
+func (s *testLegacyInterface) GetBirdMigrationDisappearances(
+	_ context.Context,
+	_, _ string,
+	_ int,
+) ([]datastore.BirdMigrationDisappearanceData, error) {
+	return nil, nil
+}
 func (s *testLegacyInterface) GetSpeciesSummaryData(_ context.Context, _, _ string) ([]datastore.SpeciesSummaryData, error) {
 	return nil, nil
 }

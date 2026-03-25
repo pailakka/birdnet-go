@@ -73,12 +73,33 @@
     className = '',
   }: Props = $props();
 
+  function hasDateRange(listData: DetectionsListData): boolean {
+    return Boolean(listData.startDate && listData.endDate);
+  }
+
   // Generate title based on query type
   const title = $derived.by(() => {
     if (!data) return t('detections.title');
 
     switch (data.queryType) {
       case 'hourly':
+        if (hasDateRange(data)) {
+          if (data.duration && data.duration > 1) {
+            return t('detections.titles.hourlyRangeDateRange', {
+              startHour: data.hour,
+              endHour: (data.hour || 0) + data.duration,
+              startDate: data.startDate!,
+              endDate: data.endDate!,
+            });
+          }
+
+          return t('detections.titles.hourlyDateRange', {
+            hour: data.hour,
+            startDate: data.startDate!,
+            endDate: data.endDate!,
+          });
+        }
+
         if (data.duration && data.duration > 1) {
           return t('detections.titles.hourlyRange', {
             startHour: data.hour,
@@ -89,12 +110,25 @@
         return t('detections.titles.hourly', { hour: data.hour, date: data.date });
 
       case 'species':
+        if (hasDateRange(data)) {
+          return t('detections.titles.speciesDateRange', {
+            species: data.species,
+            startDate: data.startDate!,
+            endDate: data.endDate!,
+          });
+        }
         return t('detections.titles.species', { species: data.species, date: data.date });
 
       case 'search':
         return t('detections.titles.search', { query: data.search });
 
       default:
+        if (hasDateRange(data)) {
+          return t('detections.titles.allDetectionsDateRange', {
+            startDate: data.startDate!,
+            endDate: data.endDate!,
+          });
+        }
         return t('detections.titles.allDetections', { date: data.date });
     }
   });

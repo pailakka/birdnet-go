@@ -222,8 +222,8 @@ func NewTrackerFromSettings(ds SpeciesDatastore, settings *conf.SpeciesTrackingS
 	// Initialize seasons from configuration
 	if settings.SeasonalTracking.Enabled && len(settings.SeasonalTracking.Seasons) > 0 {
 		for name, season := range settings.SeasonalTracking.Seasons {
-			// Validate season date
-			if err := validateSeasonDate(season.StartMonth, season.StartDay); err != nil {
+			mappedSeason, err := seasonDateFromConfig(season)
+			if err != nil {
 				getLog().Error("Invalid season date, skipping",
 					logger.String("season", name),
 					logger.Int("month", season.StartMonth),
@@ -231,10 +231,7 @@ func NewTrackerFromSettings(ds SpeciesDatastore, settings *conf.SpeciesTrackingS
 					logger.Error(err))
 				continue
 			}
-			tracker.seasons[name] = seasonDates{
-				month: season.StartMonth,
-				day:   season.StartDay,
-			}
+			tracker.seasons[name] = mappedSeason
 			getLog().Debug("Configured season",
 				logger.String("name", name),
 				logger.Int("start_month", season.StartMonth),
