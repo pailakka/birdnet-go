@@ -84,7 +84,7 @@ Lightweight connectivity check. Returns a minimal response with no database quer
 
 | Method | Route                 | Handler        | Auth | Description                                           |
 | ------ | --------------------- | -------------- | ---- | ----------------------------------------------------- |
-| GET    | `/app/config`         | `GetAppConfig` | ❌   | Public SPA bootstrap config, including seasonalTracking |
+| GET    | `/app/config`         | `GetAppConfig` | ❌   | Public SPA bootstrap config |
 | POST   | `/app/wizard/dismiss` | `DismissWizard`| ⚠️   | Persist wizard dismissal state                        |
 
 ### Analytics (`analytics.go`)

@@ -42,17 +42,6 @@ const RETRY_DELAYS = [1000, 2000, 4000];
 /** Default timeout for config fetch in milliseconds */
 const FETCH_TIMEOUT_MS = 10000;
 
-export interface PublicSeason {
-  startMonth: number;
-  startDay: number;
-}
-
-export interface PublicSeasonalTracking {
-  enabled: boolean;
-  windowDays: number;
-  seasons: Record<string, PublicSeason>;
-}
-
 /**
  * API response type from /api/v2/app/config endpoint
  */
@@ -69,7 +58,6 @@ interface AppConfigResponse {
       liveAudio: boolean;
     };
   };
-  seasonalTracking?: PublicSeasonalTracking;
   version: string;
   freshInstall?: boolean;
   newVersion?: boolean;
@@ -124,8 +112,6 @@ interface AppState {
   liveSpectrogram: boolean;
   /** Dashboard layout from public config (available before auth) */
   layout: AppConfigResponse['layout'] | null;
-  /** Public seasonal tracking configuration for analytics pages */
-  seasonalTracking: PublicSeasonalTracking;
   /** Security configuration */
   security: {
     enabled: boolean;
@@ -152,11 +138,6 @@ const DEFAULT_STATE: AppState = {
   previousVersion: null,
   liveSpectrogram: false,
   layout: null,
-  seasonalTracking: {
-    enabled: false,
-    windowDays: 0,
-    seasons: {},
-  },
   security: {
     enabled: false,
     accessAllowed: true,
@@ -283,11 +264,6 @@ export async function initApp(): Promise<boolean> {
       appState.previousVersion = config.previousVersion ?? null;
       appState.liveSpectrogram = config.liveSpectrogram ?? false;
       appState.layout = config.layout ?? null;
-      appState.seasonalTracking = {
-        enabled: config.seasonalTracking?.enabled ?? false,
-        windowDays: config.seasonalTracking?.windowDays ?? 0,
-        seasons: config.seasonalTracking?.seasons ?? {},
-      };
 
       // Apply server-configured appearance settings
       if (config.colorScheme) {

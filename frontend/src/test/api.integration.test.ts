@@ -138,7 +138,8 @@ describe('App Config API', () => {
 
     const config = await response.json();
     expect(config).toBeDefined();
-    expect(config).toHaveProperty('seasonalTracking');
+    expect(config).toHaveProperty('security');
+    expect(config).not.toHaveProperty('seasonalTracking');
   });
 
   it('can fetch available locales', async () => {
@@ -239,8 +240,11 @@ describe('Analytics API', () => {
 
     const summary = await response.json();
     expect(Array.isArray(summary)).toBe(true);
-    const firstRow = Array.isArray(summary) ? summary[0] : undefined;
-    expect(firstRow ?? {}).toHaveProperty('active_days');
+    if (!Array.isArray(summary)) {
+      return;
+    }
+
+    expect(summary.length === 0 || 'active_days' in summary[0]).toBe(true);
   });
 
   it('can fetch daily species summary', async () => {

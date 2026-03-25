@@ -275,28 +275,25 @@ func TestGetBirdMigrationSeasons(t *testing.T) {
 	require.Len(t, response.Seasons, 4)
 
 	assert.Equal(t, "summer", response.Seasons[0].Name)
-	assert.Equal(t, "Summer 2025", response.Seasons[0].Label)
 	assert.Equal(t, "2025-06-21", response.Seasons[0].StartDate)
 	assert.Equal(t, "2025-09-21", response.Seasons[0].EndDate)
 	assert.False(t, response.Seasons[0].IsCurrent)
 
 	assert.Equal(t, "fall", response.Seasons[1].Name)
-	assert.Equal(t, "Fall 2025", response.Seasons[1].Label)
 	assert.Equal(t, "2025-09-22", response.Seasons[1].StartDate)
 	assert.Equal(t, "2025-12-20", response.Seasons[1].EndDate)
 	assert.False(t, response.Seasons[1].IsCurrent)
 
 	assert.Equal(t, "winter", response.Seasons[2].Name)
-	assert.Equal(t, "Winter 2025-2026", response.Seasons[2].Label)
 	assert.Equal(t, "2025-12-21", response.Seasons[2].StartDate)
 	assert.Equal(t, "2026-03-19", response.Seasons[2].EndDate)
 	assert.False(t, response.Seasons[2].IsCurrent)
 
 	assert.Equal(t, "spring", response.Seasons[3].Name)
-	assert.Equal(t, "Spring 2026", response.Seasons[3].Label)
 	assert.Equal(t, "2026-03-20", response.Seasons[3].StartDate)
 	assert.Equal(t, "2026-06-20", response.Seasons[3].EndDate)
 	assert.True(t, response.Seasons[3].IsCurrent)
+	assert.NotContains(t, rec.Body.String(), "\"label\"")
 
 	mockDS.AssertExpectations(t)
 }
