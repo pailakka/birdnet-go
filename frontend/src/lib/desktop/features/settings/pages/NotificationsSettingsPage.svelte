@@ -833,12 +833,18 @@
     editingProviderIndex = null;
   }
 
-  // Track an in-flight checkNtfyServer() promise so the save button stays
-  // disabled during the debounce window, preventing a race condition.
+  // Track an in-flight checkNtfyServer() promise so saveProvider can await it,
+  // and keep the save button disabled during the debounce window.
   let ntfyCheckPromise: Promise<void> | undefined = $state();
 
-  function saveProvider() {
+  async function saveProvider() {
     if (!isServiceFormValid) return;
+
+    // If an ntfy protocol check is still in flight, wait for it to finish
+    // so the generated URL uses the correct scheme.
+    if (selectedService === 'ntfy' && ntfyCheckPromise) {
+      await ntfyCheckPromise;
+    }
 
     let name = providerFormData.name.trim();
     if (!name) {
@@ -1969,6 +1975,7 @@
                       class="inline-flex items-center justify-center h-8 px-3 text-sm font-medium rounded-lg bg-[var(--color-primary)] text-[var(--color-primary-content)] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!isServiceFormValid ||
                         (selectedService === 'ntfy' &&
+                          (serviceFormData.ntfyCheckStatus === 'checking' || !!ntfyCheckPromise))}
                           (serviceFormData.ntfyCheckStatus === 'checking' || !!ntfyCheckPromise))}
                     >
                       {t('settings.notifications.push.form.saveButton')}
