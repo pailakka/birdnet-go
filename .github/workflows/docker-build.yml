@@ -31,7 +31,9 @@ permissions:
 jobs:
   # Lint is handled by golangci-test.yml workflow - no need to duplicate here
   build-and-push-docker-image:
-    if: github.event_name == 'push' && github.ref_name == 'main'
+    if: |
+      (github.event_name == 'push' && github.ref_name == 'main') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GitHub Action
@@ -44,12 +46,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate downcase repository name
+      - name: Generate image metadata
         run: |
           echo "REPO=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+          BRANCH_TAG=$(echo "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9._-]#-#g')
+          echo "BRANCH_TAG=${BRANCH_TAG}" >> ${GITHUB_ENV}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      - name: Generate tags
+        run: |
+          TAGS="ghcr.io/${REPO}:${GITHUB_SHA}"
+          TAGS="${TAGS}"$'\n'"ghcr.io/${REPO}:podman-${GITHUB_SHA}"
+
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            TAGS="${TAGS}"$'\n'"ghcr.io/${REPO}:dev"
+            TAGS="${TAGS}"$'\n'"ghcr.io/${REPO}:podman-dev"
+          else
+            TAGS="${TAGS}"$'\n'"ghcr.io/${REPO}:branch-${BRANCH_TAG}"
+            TAGS="${TAGS}"$'\n'"ghcr.io/${REPO}:podman-branch-${BRANCH_TAG}"
+          fi
+
+          {
+            echo "TAGS<<EOF"
+            echo "${TAGS}"
+            echo "EOF"
+          } >> "${GITHUB_ENV}"
 
       - name: Build and push container images
         uses: docker/build-push-action@v7
@@ -60,11 +83,7 @@ jobs:
           # Standard tags for Docker users
           # Podman-prefixed tags for easier discovery by Podman users
           # Same OCI image, just different tags for user convenience
-          tags: |
-            ghcr.io/${{ env.REPO }}:dev
-            ghcr.io/${{ env.REPO }}:${{ github.sha }}
-            ghcr.io/${{ env.REPO }}:podman-dev
-            ghcr.io/${{ env.REPO }}:podman-${{ github.sha }}
+          tags: ${{ env.TAGS }}
           platforms: linux/arm64, linux/amd64
           cache-from: |
             type=gha
