@@ -8,7 +8,6 @@ import (
 
 	"github.com/tphakala/birdnet-go/internal/conf"
 	"github.com/tphakala/birdnet-go/internal/errors"
-	"github.com/tphakala/birdnet-go/internal/logger"
 )
 
 // SeasonBoundary represents a season start date resolved from seasonal tracking settings.
@@ -38,7 +37,7 @@ func ResolveSeasonBoundary(
 
 	return SeasonBoundary{
 		Name:  seasonName,
-		Start: calculateSeasonStartDateFor(seasons, seasonName, seasonStart, currentTime, false),
+		Start: calculateSeasonStartDateFor(seasons, seasonStart, currentTime, false),
 	}, nil
 }
 
@@ -207,7 +206,6 @@ func shouldAdjustYearForSeasonFor(
 
 func calculateSeasonStartDateFor(
 	seasons map[string]seasonDates,
-	seasonName string,
 	seasonStart seasonDates,
 	currentTime time.Time,
 	isRangeCalculation bool,
@@ -239,9 +237,6 @@ func calculateSeasonStartDateFor(
 			0,
 			currentTime.Location(),
 		)
-		getLog().Debug("Adjusting season to previous year",
-			logger.String("season", seasonName),
-			logger.String("adjusted_date", seasonDate.Format(time.DateOnly)))
 	}
 
 	return seasonDate
@@ -261,7 +256,7 @@ func computeCurrentSeasonName(
 			continue
 		}
 
-		seasonDate := calculateSeasonStartDateFor(seasons, seasonName, seasonStart, currentTime, false)
+		seasonDate := calculateSeasonStartDateFor(seasons, seasonStart, currentTime, false)
 		isOnOrAfter := !currentTime.Before(seasonDate)
 		isMoreRecent := currentSeason == "" || seasonDate.After(latestDate)
 		if isOnOrAfter && isMoreRecent {

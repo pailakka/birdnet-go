@@ -6,13 +6,17 @@ import { parseLocalDateString } from '$lib/utils/date';
 import { loggers } from '$lib/utils/logger';
 import { buildAppUrl } from '$lib/utils/urlHelpers';
 
-import { deriveBirdMigrationAnalytics } from '../utils/birdMigrationAnalytics';
+import {
+  deriveBirdMigrationAnalytics,
+  mergeBirdMigrationRowsWithThumbnails,
+} from '../utils/birdMigrationAnalytics';
 import {
   buildBirdMigrationDetectionsUrl,
   buildBirdMigrationDisplaySeasons,
   findBirdMigrationSeason,
   getBirdMigrationAdjacentSeasonStart,
   getBirdMigrationObservedEndDate,
+  resolveBirdMigrationSelectedSeasonStart,
 } from '../utils/birdMigrationDisplay';
 import type {
   BirdMigrationDailyDetections,
@@ -45,11 +49,6 @@ interface BirdMigrationDisappearancesResponse {
   data?: BirdMigrationDisappearanceRecord[];
 }
 
-interface BirdMigrationThumbnailRow {
-  scientific_name: string;
-  thumbnail_url?: string;
-}
-
 const logger = loggers.analytics;
 const THUMBNAIL_BATCH_SIZE = 20;
 const THUMBNAIL_BATCH_DELAY_MS = 100;
@@ -74,31 +73,6 @@ function writeBirdMigrationSeasonStartToUrl(seasonStart: string, replaceState = 
   }
 
   window.history.pushState({}, '', url.toString());
-}
-
-export function resolveBirdMigrationSelectedSeasonStart(
-  displaySeasons: Array<Pick<BirdMigrationDisplaySeason, 'start_date'>>,
-  currentSeasonStart: string,
-  requestedSeasonStart: string | null
-): string {
-  if (
-    requestedSeasonStart &&
-    displaySeasons.some(season => season.start_date === requestedSeasonStart)
-  ) {
-    return requestedSeasonStart;
-  }
-
-  return currentSeasonStart || displaySeasons[0]?.start_date || '';
-}
-
-export function mergeBirdMigrationRowsWithThumbnails<T extends BirdMigrationThumbnailRow>(
-  rows: T[],
-  thumbnails: Record<string, string>
-): T[] {
-  return rows.map(row => {
-    const thumbnailUrl = thumbnails[row.scientific_name];
-    return thumbnailUrl ? { ...row, thumbnail_url: thumbnailUrl } : row;
-  });
 }
 
 export function useBirdMigrationPage() {

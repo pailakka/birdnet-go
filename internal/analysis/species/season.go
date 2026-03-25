@@ -15,20 +15,6 @@ func (t *SpeciesTracker) initializeDefaultSeasons() {
 	maps.Copy(t.seasons, defaultSeasonDates())
 }
 
-// validateSeasonOrder checks if all seasons in the given order exist in the tracker's seasons map.
-// Returns true if all seasons are present, false otherwise.
-func (t *SpeciesTracker) validateSeasonOrder(seasonOrder []string, seasonType string) bool {
-	for _, required := range seasonOrder {
-		if _, exists := t.seasons[required]; !exists {
-			getLog().Warn("Missing "+seasonType+" season in configuration",
-				logger.String("missing_season", required),
-				logger.Any("available_seasons", t.seasons))
-			return false
-		}
-	}
-	return true
-}
-
 // initializeSeasonOrder builds the cached season order based on configured seasons
 // This is called once at initialization to avoid rebuilding on every computeCurrentSeason() call
 func (t *SpeciesTracker) initializeSeasonOrder() {
@@ -153,8 +139,8 @@ func (t *SpeciesTracker) isSameSeasonPeriod(time1, time2 time.Time) bool {
 }
 
 // calculateSeasonStartDate calculates the start date for a season, adjusting for year boundaries.
-func (t *SpeciesTracker) calculateSeasonStartDate(seasonName string, seasonStart seasonDates, currentTime time.Time) time.Time {
-	return calculateSeasonStartDateFor(t.seasons, seasonName, seasonStart, currentTime, false)
+func (t *SpeciesTracker) calculateSeasonStartDate(seasonStart seasonDates, currentTime time.Time) time.Time {
+	return calculateSeasonStartDateFor(t.seasons, seasonStart, currentTime, false)
 }
 
 // computeCurrentSeason performs the actual season calculation
@@ -182,7 +168,7 @@ func (t *SpeciesTracker) computeCurrentSeason(currentTime time.Time) string {
 
 	seasonStartDate := ""
 	if seasonStart, exists := t.seasons[currentSeason]; exists {
-		seasonStartDate = t.calculateSeasonStartDate(currentSeason, seasonStart, currentTime).Format(time.DateOnly)
+		seasonStartDate = t.calculateSeasonStartDate(seasonStart, currentTime).Format(time.DateOnly)
 	}
 
 	getLog().Debug("Computed season result",
@@ -341,7 +327,7 @@ func (t *SpeciesTracker) getSeasonDateRange(seasonName string, now time.Time) (s
 		now.Nanosecond(),
 		now.Location(),
 	)
-	seasonStart := calculateSeasonStartDateFor(t.seasons, seasonName, season, referenceTime, true)
+	seasonStart := calculateSeasonStartDateFor(t.seasons, season, referenceTime, true)
 
 	// Calculate season end date - seasons last monthsPerSeason months
 	// Add monthsPerSeason months, then subtract 1 day to get the last day of the final month

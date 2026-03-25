@@ -65,6 +65,18 @@ export function buildBirdMigrationDisplaySeasons(
   }));
 }
 
+export function resolveBirdMigrationSelectedSeasonStart(
+  seasons: Array<Pick<BirdMigrationDisplaySeason, 'start_date'>>,
+  currentSeasonStart: string,
+  requestedSeasonStart: string | null
+): string {
+  if (requestedSeasonStart && seasons.some(season => season.start_date === requestedSeasonStart)) {
+    return requestedSeasonStart;
+  }
+
+  return currentSeasonStart || seasons[0]?.start_date || '';
+}
+
 export function findBirdMigrationSeason<T extends { start_date: string }>(
   seasons: T[],
   seasonStart: string

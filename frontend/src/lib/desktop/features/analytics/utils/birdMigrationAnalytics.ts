@@ -13,6 +13,11 @@ import type {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+interface BirdMigrationThumbnailRow {
+  scientific_name: string;
+  thumbnail_url?: string;
+}
+
 function extractLocalDate(datetime: string): string {
   const dateMatch = datetime.match(/^(\d{4}-\d{2}-\d{2})/);
   if (dateMatch) {
@@ -46,6 +51,16 @@ function getBirdMigrationDateRange(startDate: string, endDate: string): string[]
   }
 
   return dates;
+}
+
+export function mergeBirdMigrationRowsWithThumbnails<T extends BirdMigrationThumbnailRow>(
+  rows: T[],
+  thumbnails: Record<string, string>
+): T[] {
+  return rows.map(row => {
+    const thumbnailUrl = thumbnails[row.scientific_name];
+    return thumbnailUrl ? { ...row, thumbnail_url: thumbnailUrl } : row;
+  });
 }
 
 export function deriveBirdMigrationRoster(

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  mergeBirdMigrationRowsWithThumbnails,
-  resolveBirdMigrationSelectedSeasonStart,
-} from './useBirdMigrationPage.svelte';
+import { resolveBirdMigrationSelectedSeasonStart } from '../utils/birdMigrationDisplay';
+import { mergeBirdMigrationRowsWithThumbnails } from '../utils/birdMigrationAnalytics';
 
 describe('useBirdMigrationPage helpers', () => {
   it('falls back to the current season when the requested season is missing', () => {

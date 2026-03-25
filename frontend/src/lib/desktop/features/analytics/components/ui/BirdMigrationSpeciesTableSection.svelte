@@ -32,32 +32,33 @@
   let { variant, rows, countLabel, onSpeciesClick }: Props = $props();
 
   const config = $derived.by<VariantConfig>(() => {
-    switch (variant) {
-      case 'recent-arrivals':
-        return {
-          accentClasses: 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]',
-          description: t('analytics.birdMigration.tables.recentArrivalsDescription'),
-          emptyDescription: t('analytics.birdMigration.tables.noRecentArrivals'),
-          sortBy: 'date_asc',
-          title: t('analytics.birdMigration.tables.recentArrivals'),
-        };
-      case 'quiet-species':
-        return {
-          accentClasses: 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
-          description: t('analytics.birdMigration.tables.quietSpeciesDescription'),
-          emptyDescription: t('analytics.birdMigration.tables.noQuietSpecies'),
-          sortBy: 'date_desc',
-          title: t('analytics.birdMigration.tables.quietSpecies'),
-        };
-      case 'roster':
-        return {
-          accentClasses: 'bg-[var(--color-secondary)]/10 text-[var(--color-secondary)]',
-          description: t('analytics.birdMigration.tables.rosterDescription'),
-          emptyDescription: t('analytics.birdMigration.tables.noSeasonDetections'),
-          sortBy: 'date_desc',
-          title: t('analytics.birdMigration.tables.roster'),
-        };
+    if (variant === 'recent-arrivals') {
+      return {
+        accentClasses: 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]',
+        description: t('analytics.birdMigration.tables.recentArrivalsDescription'),
+        emptyDescription: t('analytics.birdMigration.tables.noRecentArrivals'),
+        sortBy: 'date_asc',
+        title: t('analytics.birdMigration.tables.recentArrivals'),
+      };
     }
+
+    if (variant === 'quiet-species') {
+      return {
+        accentClasses: 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
+        description: t('analytics.birdMigration.tables.quietSpeciesDescription'),
+        emptyDescription: t('analytics.birdMigration.tables.noQuietSpecies'),
+        sortBy: 'date_desc',
+        title: t('analytics.birdMigration.tables.quietSpecies'),
+      };
+    }
+
+    return {
+      accentClasses: 'bg-[var(--color-secondary)]/10 text-[var(--color-secondary)]',
+      description: t('analytics.birdMigration.tables.rosterDescription'),
+      emptyDescription: t('analytics.birdMigration.tables.noSeasonDetections'),
+      sortBy: 'date_desc',
+      title: t('analytics.birdMigration.tables.roster'),
+    };
   });
 
   const displayCount = $derived(countLabel ?? formatBirdMigrationNumber(rows.length));
