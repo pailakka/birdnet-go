@@ -6,8 +6,8 @@
     formatBirdMigrationDate,
     formatBirdMigrationNumber,
     getBirdMigrationSpeciesInitials,
-    type BirdMigrationDisappearanceRecord,
-  } from '../../utils/birdMigration';
+  } from '../../utils/birdMigrationDisplay';
+  import type { BirdMigrationDisappearanceRecord } from '../../utils/birdMigrationTypes';
 
   interface Props {
     rows: BirdMigrationDisappearanceRecord[];

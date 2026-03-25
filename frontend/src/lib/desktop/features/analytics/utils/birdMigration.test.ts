@@ -3,18 +3,22 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildBirdMigrationDetectionsUrl,
   buildBirdMigrationDisplaySeasons,
-  deriveBirdMigrationAnalytics,
   findBirdMigrationSeason,
   formatBirdMigrationSeasonLabel,
   getBirdMigrationAdjacentSeasonStart,
   getBirdMigrationObservedEndDate,
+} from './birdMigrationDisplay';
+import {
+  deriveBirdMigrationAnalytics,
   sortBirdMigrationDisappearances,
-  type BirdMigrationDailyDetections,
-  type BirdMigrationDailyDiversity,
-  type BirdMigrationDisappearanceRecord,
-  type BirdMigrationSeason,
-  type BirdMigrationSpeciesSummary,
-} from './birdMigration';
+} from './birdMigrationAnalytics';
+import type {
+  BirdMigrationDailyDetections,
+  BirdMigrationDailyDiversity,
+  BirdMigrationDisappearanceRecord,
+  BirdMigrationSeason,
+  BirdMigrationSpeciesSummary,
+} from './birdMigrationTypes';
 
 vi.mock('$lib/i18n', () => ({
   t: vi.fn((key: string) => {

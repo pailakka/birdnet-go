@@ -12,7 +12,7 @@
   import type { ChartTheme } from './utils/theme';
   import { t } from '$lib/i18n';
   import { getLocalDateString } from '$lib/utils/date';
-  import type { BirdMigrationActivityDatum } from '../../../utils/birdMigration';
+  import type { BirdMigrationActivityDatum } from '../../../utils/birdMigrationTypes';
 
   interface ActivityDatum {
     date: Date;
@@ -52,7 +52,7 @@
   let chartContainer = $state<HTMLDivElement | null>(null);
   let chartContext = $state<{
     svg: Selection<SVGSVGElement, unknown, null, undefined>;
-    chartGroup: Selection<SVGGElement, unknown, null, undefined>;
+    chartGroup: Selection<globalThis.SVGGElement, unknown, null, undefined>;
     innerWidth: number;
     innerHeight: number;
     theme: ChartTheme;
@@ -60,7 +60,7 @@
   let tooltip: ChartTooltip | null = null;
 
   function drawChart(context: {
-    chartGroup: Selection<SVGGElement, unknown, null, undefined>;
+    chartGroup: Selection<globalThis.SVGGElement, unknown, null, undefined>;
     innerWidth: number;
     innerHeight: number;
     theme: ChartTheme;

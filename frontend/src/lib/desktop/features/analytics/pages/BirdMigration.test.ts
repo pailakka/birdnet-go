@@ -13,12 +13,14 @@ vi.mock('$lib/i18n', () => ({
   t: vi.fn((key: string) => {
     const translations = new Map<string, string>([
       ['settings.species.tracking.seasonal.seasons.spring', 'Spring'],
+      ['settings.species.tracking.seasonal.seasons.winter', 'Winter'],
       ['analytics.birdMigration.states.disabledTitle', 'Bird migration unavailable'],
       [
         'analytics.birdMigration.states.disabledDescription',
         'Seasonal tracking is disabled or has no configured seasons.',
       ],
       ['analytics.birdMigration.controls.currentSeason', 'Current Season'],
+      ['analytics.birdMigration.controls.previousSeason', 'Previous Season'],
       ['analytics.birdMigration.tables.disappearances', 'Disappearances'],
     ]);
 
@@ -48,6 +50,15 @@ function jsonResponse(body: unknown): Response {
     ok: true,
     json: async () => body,
   } as Response;
+}
+
+function deferredResponse() {
+  let resolve!: (_value: Response) => void;
+  const promise = new Promise<Response>(res => {
+    resolve = res;
+  });
+
+  return { promise, resolve };
 }
 
 describe('BirdMigration page', () => {
@@ -177,6 +188,112 @@ describe('BirdMigration page', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/v2/analytics/bird-migration/seasons');
+    });
+  });
+
+  it('keeps the latest season data when an older request resolves later', async () => {
+    const springSpecies = deferredResponse();
+
+    global.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url === '/api/v2/analytics/bird-migration/seasons') {
+        return Promise.resolve(
+          jsonResponse({
+            enabled: true,
+            window_days: 7,
+            current_season_start: '2026-03-01',
+            seasons: [
+              {
+                name: 'winter',
+                start_date: '2025-12-21',
+                end_date: '2026-02-28',
+                is_current: false,
+              },
+              {
+                name: 'spring',
+                start_date: '2026-03-01',
+                end_date: '2026-05-31',
+                is_current: true,
+              },
+            ],
+          })
+        );
+      }
+
+      if (url.includes('/api/v2/analytics/species/summary?start_date=2026-03-01')) {
+        return springSpecies.promise;
+      }
+      if (url.includes('/api/v2/analytics/time/daily?start_date=2026-03-01')) {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+      if (url.includes('/api/v2/analytics/species/diversity?start_date=2026-03-01')) {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+      if (url.includes('/api/v2/analytics/bird-migration/disappearances?start_date=2026-03-01')) {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+
+      if (url.includes('/api/v2/analytics/species/summary?start_date=2025-12-21')) {
+        return Promise.resolve(
+          jsonResponse([
+            {
+              common_name: 'Bohemian Waxwing',
+              scientific_name: 'Bombycilla garrulus',
+              species_code: 'bohwax',
+              count: 6,
+              active_days: 3,
+              first_heard: '2025-12-21 08:00:00',
+              last_heard: '2026-02-15 09:00:00',
+              avg_confidence: 0.91,
+              max_confidence: 0.96,
+            },
+          ])
+        );
+      }
+      if (url.includes('/api/v2/analytics/time/daily?start_date=2025-12-21')) {
+        return Promise.resolve(jsonResponse({ data: [{ date: '2026-02-15', count: 6 }] }));
+      }
+      if (url.includes('/api/v2/analytics/species/diversity?start_date=2025-12-21')) {
+        return Promise.resolve(jsonResponse({ data: [{ date: '2026-02-15', unique_species: 1 }] }));
+      }
+      if (url.includes('/api/v2/analytics/bird-migration/disappearances?start_date=2025-12-21')) {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+
+      if (url.startsWith('/api/v2/analytics/species/thumbnails?')) {
+        return Promise.resolve(jsonResponse({}));
+      }
+
+      throw new Error(`Unhandled fetch URL: ${url}`);
+    }) as typeof global.fetch;
+
+    render(BirdMigration);
+
+    const previousSeasonButton = await screen.findByRole('button', { name: 'Previous Season' });
+    await fireEvent.click(previousSeasonButton);
+
+    expect((await screen.findAllByText('Bohemian Waxwing')).length).toBeGreaterThan(0);
+
+    springSpecies.resolve(
+      jsonResponse([
+        {
+          common_name: 'Whooper Swan',
+          scientific_name: 'Cygnus cygnus',
+          species_code: 'whoswa',
+          count: 8,
+          active_days: 3,
+          first_heard: '2026-03-18 07:10:00',
+          last_heard: '2026-03-21 08:20:00',
+          avg_confidence: 0.92,
+          max_confidence: 0.97,
+        },
+      ])
+    );
+
+    await waitFor(() => {
+      expect(screen.queryAllByText('Bohemian Waxwing').length).toBeGreaterThan(0);
+      expect(screen.queryAllByText('Whooper Swan')).toHaveLength(0);
     });
   });
 });

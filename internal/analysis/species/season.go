@@ -4,7 +4,6 @@ package species
 
 import (
 	"maps"
-	"slices"
 	"time"
 
 	"github.com/tphakala/birdnet-go/internal/errors"
@@ -13,10 +12,7 @@ import (
 
 // initializeDefaultSeasons sets up the default Northern Hemisphere seasons
 func (t *SpeciesTracker) initializeDefaultSeasons() {
-	t.seasons["spring"] = seasonDates{month: monthMarch, day: daySpringEquinox}     // March 20
-	t.seasons["summer"] = seasonDates{month: monthJune, day: daySummerSolstice}     // June 21
-	t.seasons["fall"] = seasonDates{month: monthSeptember, day: dayFallEquinox}     // September 22
-	t.seasons["winter"] = seasonDates{month: monthDecember, day: dayWinterSolstice} // December 21
+	maps.Copy(t.seasons, defaultSeasonDates())
 }
 
 // validateSeasonOrder checks if all seasons in the given order exist in the tracker's seasons map.
@@ -36,24 +32,7 @@ func (t *SpeciesTracker) validateSeasonOrder(seasonOrder []string, seasonType st
 // initializeSeasonOrder builds the cached season order based on configured seasons
 // This is called once at initialization to avoid rebuilding on every computeCurrentSeason() call
 func (t *SpeciesTracker) initializeSeasonOrder() {
-	// Check if we have traditional seasons (Northern/Southern Hemisphere)
-	if _, hasWinter := t.seasons["winter"]; hasWinter {
-		seasonOrder := []string{"winter", "spring", "summer", "fall"}
-		if t.validateSeasonOrder(seasonOrder, "traditional") {
-			t.cachedSeasonOrder = seasonOrder
-			return
-		}
-	} else if _, hasWet1 := t.seasons["wet1"]; hasWet1 {
-		// Equatorial seasons: dry2, wet1, dry1, wet2 (in chronological order within a year)
-		seasonOrder := []string{"dry2", "wet1", "dry1", "wet2"}
-		if t.validateSeasonOrder(seasonOrder, "equatorial") {
-			t.cachedSeasonOrder = seasonOrder
-			return
-		}
-	}
-
-	// Fall back to using all available seasons if non-standard configuration
-	t.cachedSeasonOrder = slices.Collect(maps.Keys(t.seasons))
+	t.cachedSeasonOrder = buildSeasonOrder(t.seasons)
 
 	getLog().Debug("Initialized season order cache",
 		logger.Any("order", t.cachedSeasonOrder),
@@ -88,28 +67,13 @@ func validateSeasonDate(month, day int) error {
 // isInEarlyWinterMonths checks if the current month is in the early winter period
 // (the 2 months after winter starts). Returns false if winter season is not configured.
 func (t *SpeciesTracker) isInEarlyWinterMonths(currentMonth time.Month) bool {
-	winterSeason, hasWinter := t.seasons["winter"]
-	if !hasWinter {
-		return false
-	}
-	// Early winter months are the 2 months after winter starts, in the next year
-	// Northern: Winter starts Dec, so Jan/Feb are early winter
-	// Southern: Winter starts Jun, so Jul/Aug are early winter
-	winterStartMonth := time.Month(winterSeason.month)
-	earlyWinterMonth1 := (winterStartMonth % monthsPerYear) + 1       // Month after winter start
-	earlyWinterMonth2 := ((winterStartMonth + 1) % monthsPerYear) + 1 // 2 months after winter start
-	return currentMonth == earlyWinterMonth1 || currentMonth == earlyWinterMonth2
+	return isInEarlyWinterMonthsFor(t.seasons, currentMonth)
 }
 
 // shouldAdjustFallSeasonYear determines if fall season year should be adjusted to previous year.
 // Returns true if we're in early winter months (when fall has ended).
 func (t *SpeciesTracker) shouldAdjustFallSeasonYear(now time.Time, seasonMonth time.Month) bool {
-	fallSeason, hasFall := t.seasons["fall"]
-	if !hasFall || int(seasonMonth) != fallSeason.month {
-		return false
-	}
-	// For fall season, only adjust to previous year if we're in early winter months
-	return t.isInEarlyWinterMonths(now.Month())
+	return shouldAdjustFallSeasonYearFor(t.seasons, now, seasonMonth)
 }
 
 // shouldAdjustYearForSeason determines if a season's year should be adjusted backward
@@ -124,20 +88,7 @@ func (t *SpeciesTracker) shouldAdjustFallSeasonYear(now time.Time, seasonMonth t
 //   - isRangeCalculation: true when calculating date ranges (e.g., getSeasonDateRange),
 //     false when detecting current season (e.g., computeCurrentSeason)
 func (t *SpeciesTracker) shouldAdjustYearForSeason(now time.Time, seasonMonth time.Month, isRangeCalculation bool) bool {
-	// Core logic: Year-crossing seasons (Oct-Dec) in early months of the year
-	// These seasons span year boundaries (e.g., Northern winter: Dec-Feb, Southern summer: Dec-Feb)
-	if seasonMonth >= time.October && now.Month() < yearCrossingCutoffMonth {
-		return true
-	}
-
-	// Additional logic for range calculations only:
-	// Handle fall season - return current year's fall unless we're in early winter months.
-	if isRangeCalculation && t.shouldAdjustFallSeasonYear(now, seasonMonth) {
-		return true
-	}
-
-	// For other seasons (spring, summer), don't adjust to previous year
-	return false
+	return shouldAdjustYearForSeasonFor(t.seasons, now, seasonMonth, isRangeCalculation)
 }
 
 // getCurrentSeason determines which season we're currently in with intelligent caching
@@ -203,16 +154,7 @@ func (t *SpeciesTracker) isSameSeasonPeriod(time1, time2 time.Time) bool {
 
 // calculateSeasonStartDate calculates the start date for a season, adjusting for year boundaries.
 func (t *SpeciesTracker) calculateSeasonStartDate(seasonName string, seasonStart seasonDates, currentTime time.Time) time.Time {
-	seasonDate := time.Date(currentTime.Year(), time.Month(seasonStart.month), seasonStart.day, 0, 0, 0, 0, currentTime.Location())
-
-	// Handle seasons that might cross year boundaries
-	if t.shouldAdjustYearForSeason(currentTime, time.Month(seasonStart.month), false) {
-		seasonDate = time.Date(currentTime.Year()-1, time.Month(seasonStart.month), seasonStart.day, 0, 0, 0, 0, currentTime.Location())
-		getLog().Debug("Adjusting season to previous year",
-			logger.String("season", seasonName),
-			logger.String("adjusted_date", seasonDate.Format(time.DateOnly)))
-	}
-	return seasonDate
+	return calculateSeasonStartDateFor(t.seasons, seasonName, seasonStart, currentTime, false)
 }
 
 // computeCurrentSeason performs the actual season calculation
@@ -232,35 +174,20 @@ func (t *SpeciesTracker) computeCurrentSeason(currentTime time.Time) string {
 	}
 
 	// Find the most recent season start date
-	var currentSeason string
-	var latestDate time.Time
-
-	for _, seasonName := range seasonOrder {
-		seasonStart, exists := t.seasons[seasonName]
-		if !exists {
-			continue
-		}
-
-		seasonDate := t.calculateSeasonStartDate(seasonName, seasonStart, currentTime)
-
-		// Check if current date is on or after this season's start and it's the most recent
-		isOnOrAfter := !currentTime.Before(seasonDate)
-		isMoreRecent := currentSeason == "" || seasonDate.After(latestDate)
-		if isOnOrAfter && isMoreRecent {
-			currentSeason = seasonName
-			latestDate = seasonDate
-		}
-	}
-
-	// Default to winter if we couldn't determine the season
+	currentSeason := computeCurrentSeasonName(t.seasons, seasonOrder, currentTime)
 	if currentSeason == "" {
 		currentSeason = "winter"
 		getLog().Debug("Defaulting to winter season - no match found")
 	}
 
+	seasonStartDate := ""
+	if seasonStart, exists := t.seasons[currentSeason]; exists {
+		seasonStartDate = t.calculateSeasonStartDate(currentSeason, seasonStart, currentTime).Format(time.DateOnly)
+	}
+
 	getLog().Debug("Computed season result",
 		logger.String("season", currentSeason),
-		logger.String("season_start_date", latestDate.Format(time.DateOnly)))
+		logger.String("season_start_date", seasonStartDate))
 
 	return currentSeason
 }
@@ -404,13 +331,17 @@ func (t *SpeciesTracker) getSeasonDateRange(seasonName string, now time.Time) (s
 		currentYear = t.currentYear
 	}
 
-	// Calculate season start date
-	seasonStart := time.Date(currentYear, time.Month(season.month), season.day, 0, 0, 0, 0, now.Location())
-
-	// Handle seasons that might need adjustment to previous year
-	if t.shouldAdjustYearForSeason(now, time.Month(season.month), true) {
-		seasonStart = time.Date(currentYear-1, time.Month(season.month), season.day, 0, 0, 0, 0, now.Location())
-	}
+	referenceTime := time.Date(
+		currentYear,
+		now.Month(),
+		now.Day(),
+		now.Hour(),
+		now.Minute(),
+		now.Second(),
+		now.Nanosecond(),
+		now.Location(),
+	)
+	seasonStart := calculateSeasonStartDateFor(t.seasons, seasonName, season, referenceTime, true)
 
 	// Calculate season end date - seasons last monthsPerSeason months
 	// Add monthsPerSeason months, then subtract 1 day to get the last day of the final month
