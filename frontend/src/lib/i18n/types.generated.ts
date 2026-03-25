@@ -131,6 +131,7 @@ export type TranslationKey =
   | 'common.aria.downloadCsv'
   | 'common.aria.visitEbirdLink'
   | 'common.aria.learnEbirdTaxonomyLink'
+  | 'common.aria.resizeHandle'
   | 'common.labels.confidence'
   | 'common.labels.github'
   | 'common.values.yes'
@@ -184,6 +185,7 @@ export type TranslationKey =
   | 'pageTitle.advancedAnalytics'
   | 'pageTitle.detectionDetails'
   | 'pageTitle.settingsNotAvailable'
+  | 'pageTitle.birdMigrationAnalytics'
   | 'navigation.dashboard'
   | 'navigation.settingsMenu'
   | 'navigation.theme'
@@ -204,6 +206,7 @@ export type TranslationKey =
   | 'navigation.settingsSubmenu'
   | 'navigation.systemSubmenu'
   | 'navigation.systemTerminal'
+  | 'navigation.birdMigration'
   | 'about.title'
   | 'about.subtitle'
   | 'about.logoAlt'
@@ -322,6 +325,8 @@ export type TranslationKey =
   | 'notifications.content.error.application'
   | 'notifications.content.error.imageProvider'
   | 'notifications.content.error.categoryError' // params: category
+  | 'notifications.content.error.burstTitle' // params: component
+  | 'notifications.content.error.burstMessage' // params: count, window_minutes, sample_error
   | 'notifications.content.settings.reloadingBirdnet'
   | 'notifications.content.settings.rebuildingRangeFilter'
   | 'notifications.content.settings.updatingIntervals'
@@ -329,6 +334,7 @@ export type TranslationKey =
   | 'notifications.content.settings.reconfiguringBirdweather'
   | 'notifications.content.settings.reconfiguringStreams'
   | 'notifications.content.settings.reconfiguringTelemetry'
+  | 'notifications.content.settings.reconfiguringPushNotifications'
   | 'notifications.content.settings.reconfiguringSpeciesTracking'
   | 'notifications.content.settings.webserverRestartRequired'
   | 'notifications.content.settings.reconfiguringSoundLevel'
@@ -517,6 +523,9 @@ export type TranslationKey =
   | 'dashboard.recentDetections.actions.unlockDetection'
   | 'dashboard.recentDetections.actions.deleteDetection'
   | 'dashboard.recentDetections.noDetections'
+  | 'dashboard.recentDetections.errors.toggleSpeciesFailed'
+  | 'dashboard.recentDetections.errors.toggleLockFailed'
+  | 'dashboard.recentDetections.errors.deleteFailed'
   | 'dashboard.errors.dailySummaryFetch' // params: status
   | 'dashboard.errors.dailySummaryLoad'
   | 'dashboard.errors.recentDetectionsFetch' // params: status
@@ -572,10 +581,14 @@ export type TranslationKey =
   | 'dashboard.editMode.widthHalf'
   | 'dashboard.editMode.fullWidthOnly'
   | 'dashboard.editMode.settings'
+  | 'dashboard.editMode.resetDashboard'
+  | 'dashboard.editMode.resetConfirm'
+  | 'dashboard.editMode.resetting'
   | 'dashboard.elements.banner'
   | 'dashboard.elements.dailySummary'
   | 'dashboard.elements.currentlyHearing'
   | 'dashboard.elements.detectionsGrid'
+  | 'dashboard.elements.liveSpectrogram'
   | 'dashboard.elements.videoEmbed'
   | 'detections.title'
   | 'detections.titles.hourly' // params: hour, date
@@ -583,6 +596,12 @@ export type TranslationKey =
   | 'detections.titles.species' // params: species, date
   | 'detections.titles.search' // params: query
   | 'detections.titles.allDetections' // params: date
+  | 'detections.titles.hourlyDateRange' // params: hour, startDate, endDate
+  | 'detections.titles.hourlyRangeDateRange' // params: startHour, endHour, startDate, endDate
+  | 'detections.titles.speciesDateRange' // params: species, startDate, endDate
+  | 'detections.titles.allDetectionsDateRange' // params: startDate, endDate
+  | 'detections.detail.species'
+  | 'detections.detail.observation'
   | 'detections.headers.dateTime'
   | 'detections.headers.weather'
   | 'detections.headers.species'
@@ -682,11 +701,43 @@ export type TranslationKey =
   | 'species.taxonomy.labels.family'
   | 'species.taxonomy.labels.genus'
   | 'species.taxonomy.labels.species'
+  | 'species.synonyms.tabLabel'
+  | 'species.synonyms.description'
+  | 'species.synonyms.birdnetName'
+  | 'species.synonyms.updatedName'
+  | 'species.synonyms.addButton'
+  | 'species.synonyms.emptyState'
+  | 'species.synonyms.errors.unknownSpecies'
+  | 'species.synonyms.errors.duplicateKey'
+  | 'species.synonyms.errors.emptyUpdatedName'
   | 'species.tracking.title'
   | 'species.tracking.newSpecies'
   | 'species.tracking.newThisYear'
   | 'species.tracking.newThisSeason'
   | 'species.tracking.daysSinceFirst'
+  | 'spectrogram.controls.frequencyRange'
+  | 'spectrogram.controls.colorMap'
+  | 'spectrogram.controls.gain'
+  | 'spectrogram.controls.mute'
+  | 'spectrogram.controls.unmute'
+  | 'spectrogram.controls.frequencyRangeMin'
+  | 'spectrogram.controls.frequencyRangeMax'
+  | 'spectrogram.error.unsupported'
+  | 'spectrogram.error.connectionFailed'
+  | 'spectrogram.error.accessDenied'
+  | 'spectrogram.dashboard.toggle'
+  | 'spectrogram.dashboard.audioToggle'
+  | 'spectrogram.gain.muted'
+  | 'spectrogram.gain.level' // params: value
+  | 'spectrogram.page.title'
+  | 'spectrogram.page.sourceLabel'
+  | 'spectrogram.page.connected'
+  | 'spectrogram.page.enterFullscreen'
+  | 'spectrogram.page.exitFullscreen'
+  | 'spectrogram.colorMaps.inferno'
+  | 'spectrogram.colorMaps.viridis'
+  | 'spectrogram.colorMaps.grayscale'
+  | 'spectrogram.labels.toggle'
   | 'system.title'
   | 'system.refreshData'
   | 'system.aria.refreshData'
@@ -1176,6 +1227,64 @@ export type TranslationKey =
   | 'analytics.advanced.aria.loadingTrends'
   | 'analytics.advanced.aria.loadingDiversity'
   | 'analytics.errors.loadFailed'
+  | 'analytics.birdMigration.title'
+  | 'analytics.birdMigration.subtitle'
+  | 'analytics.birdMigration.season.current' // params: season
+  | 'analytics.birdMigration.season.range' // params: start, end
+  | 'analytics.birdMigration.season.dataThrough' // params: date
+  | 'analytics.birdMigration.season.observedThrough' // params: date
+  | 'analytics.birdMigration.controls.previousSeason'
+  | 'analytics.birdMigration.controls.nextSeason'
+  | 'analytics.birdMigration.controls.season'
+  | 'analytics.birdMigration.controls.currentSeason'
+  | 'analytics.birdMigration.states.disabledTitle'
+  | 'analytics.birdMigration.states.disabledDescription'
+  | 'analytics.birdMigration.stats.seasonSpecies'
+  | 'analytics.birdMigration.stats.recentArrivals'
+  | 'analytics.birdMigration.stats.quietSpecies'
+  | 'analytics.birdMigration.stats.seasonDetections'
+  | 'analytics.birdMigration.stats.windowDays' // params: days
+  | 'analytics.birdMigration.charts.arrivals.title'
+  | 'analytics.birdMigration.charts.arrivals.description'
+  | 'analytics.birdMigration.charts.arrivals.axisDate'
+  | 'analytics.birdMigration.charts.arrivals.axisCumulativeSpecies'
+  | 'analytics.birdMigration.charts.arrivals.newSpecies'
+  | 'analytics.birdMigration.charts.arrivals.cumulativeSpecies'
+  | 'analytics.birdMigration.charts.activity.title'
+  | 'analytics.birdMigration.charts.activity.description'
+  | 'analytics.birdMigration.charts.activity.axisDate'
+  | 'analytics.birdMigration.charts.activity.axisDetections'
+  | 'analytics.birdMigration.charts.activity.axisActiveSpecies'
+  | 'analytics.birdMigration.charts.activity.detections'
+  | 'analytics.birdMigration.charts.activity.activeSpecies'
+  | 'analytics.birdMigration.tables.recentArrivals'
+  | 'analytics.birdMigration.tables.recentArrivalsDescription'
+  | 'analytics.birdMigration.tables.quietSpecies'
+  | 'analytics.birdMigration.tables.quietSpeciesDescription'
+  | 'analytics.birdMigration.tables.roster'
+  | 'analytics.birdMigration.tables.rosterDescription'
+  | 'analytics.birdMigration.tables.loadingThumbnails'
+  | 'analytics.birdMigration.tables.emptyTitle'
+  | 'analytics.birdMigration.tables.noRecentArrivals'
+  | 'analytics.birdMigration.tables.noQuietSpecies'
+  | 'analytics.birdMigration.tables.noSeasonDetections'
+  | 'analytics.birdMigration.tables.columns.species'
+  | 'analytics.birdMigration.tables.columns.firstHeard'
+  | 'analytics.birdMigration.tables.columns.lastHeard'
+  | 'analytics.birdMigration.tables.columns.activeDays'
+  | 'analytics.birdMigration.tables.columns.detections'
+  | 'analytics.birdMigration.tables.columns.daysQuiet'
+  | 'analytics.birdMigration.tables.columns.date'
+  | 'analytics.birdMigration.tables.columns.lastHeardBeforeGap'
+  | 'analytics.birdMigration.tables.columns.returnedOn'
+  | 'analytics.birdMigration.tables.columns.gapDays'
+  | 'analytics.birdMigration.tables.explainerRecent' // params: days
+  | 'analytics.birdMigration.tables.explainerQuiet' // params: days
+  | 'analytics.birdMigration.tables.disappearances'
+  | 'analytics.birdMigration.tables.disappearancesDescription'
+  | 'analytics.birdMigration.tables.noDisappearances'
+  | 'analytics.birdMigration.tables.explainerDisappearances' // params: days
+  | 'analytics.birdMigration.errors.loadFailed'
   | 'settings.title'
   | 'settings.loading'
   | 'settings.sections.node'
@@ -1843,6 +1952,8 @@ export type TranslationKey =
   | 'settings.integration.weather.temperatureUnit.options.fahrenheit'
   | 'settings.integration.errors.connectionError'
   | 'settings.integration.errors.responseStreamFailed'
+  | 'settings.integration.errors.configurationCheck'
+  | 'settings.integration.errors.testStageFallback'
   | 'settings.integration.ebird.title'
   | 'settings.integration.ebird.description'
   | 'settings.integration.ebird.enable'
@@ -1853,6 +1964,13 @@ export type TranslationKey =
   | 'settings.integration.ebird.cacheTTL.label'
   | 'settings.integration.ebird.cacheTTL.helpText'
   | 'settings.integration.ebird.note'
+  | 'settings.integration.ebird.apiKeyInfo'
+  | 'settings.integration.ebird.test.button'
+  | 'settings.integration.ebird.test.loading'
+  | 'settings.integration.ebird.test.enabledRequired'
+  | 'settings.integration.ebird.test.apiKeyRequired'
+  | 'settings.integration.ebird.test.inProgress'
+  | 'settings.integration.ebird.test.description'
   | 'settings.audio.loading'
   | 'settings.audio.tabs.soundCard'
   | 'settings.audio.tabs.streams'
@@ -2240,6 +2358,12 @@ export type TranslationKey =
   | 'settings.security.bypassAuthentication.title'
   | 'settings.security.bypassAuthentication.description'
   | 'settings.security.bypassAuthentication.disabled'
+  | 'settings.security.exceptions.title'
+  | 'settings.security.publicAccess.title'
+  | 'settings.security.publicAccess.description'
+  | 'settings.security.publicAccess.liveAudioLabel'
+  | 'settings.security.publicAccess.liveAudioHelp'
+  | 'settings.security.publicAccess.warningText'
   | 'settings.security.placeholders.baseUrl'
   | 'settings.security.placeholders.host'
   | 'settings.security.placeholders.allowedUsers'
@@ -2393,6 +2517,15 @@ export type TranslationKey =
   | 'settings.species.customConfiguration.list.removeTitle'
   | 'settings.species.customConfiguration.emptyState.title'
   | 'settings.species.customConfiguration.emptyState.description'
+  | 'settings.species.synonyms.tabLabel'
+  | 'settings.species.synonyms.description'
+  | 'settings.species.synonyms.birdnetName'
+  | 'settings.species.synonyms.updatedName'
+  | 'settings.species.synonyms.addButton'
+  | 'settings.species.synonyms.emptyState'
+  | 'settings.species.synonyms.errors.unknownSpecies'
+  | 'settings.species.synonyms.errors.duplicateKey'
+  | 'settings.species.synonyms.errors.emptyUpdatedName'
   | 'settings.species.actionsModal.title' // params: species
   | 'settings.species.actionsModal.actionType.label'
   | 'settings.species.actionsModal.actionType.executeCommand'
@@ -2688,12 +2821,18 @@ export type TranslationKey =
   | 'settings.userInterface.tabs.appearance'
   | 'settings.userInterface.tabs.language'
   | 'settings.userInterface.tabs.visualContent'
+  | 'settings.userInterface.tabs.audioPlayback'
   | 'settings.userInterface.appearance.title'
   | 'settings.userInterface.appearance.description'
   | 'settings.userInterface.language.title'
   | 'settings.userInterface.language.description'
   | 'settings.userInterface.visualContent.title'
   | 'settings.userInterface.visualContent.description'
+  | 'settings.userInterface.audioPlayback.title'
+  | 'settings.userInterface.audioPlayback.description'
+  | 'settings.userInterface.audioPlayback.defaultGain'
+  | 'settings.userInterface.audioPlayback.defaultGainHelpText'
+  | 'settings.userInterface.audioPlayback.defaultGainUnit'
   | 'settings.restartRequired'
   | 'auth.login'
   | 'auth.logout'
@@ -2814,6 +2953,8 @@ export type TranslationKey =
   | 'media.audio.seekProgress' // params: current, total
   | 'media.audio.playbackSpeed'
   | 'media.audio.speed'
+  | 'media.audio.loop'
+  | 'media.audio.player'
   | 'media.spectrogram.notGenerated'
   | 'media.spectrogram.generate'
   | 'media.spectrogram.generateButton'
@@ -2824,6 +2965,7 @@ export type TranslationKey =
   | 'components.audio.spectrogramLoading'
   | 'components.audio.spectrogramLoaded'
   | 'components.audio.spectrogramLoadingAria'
+  | 'components.audio.spectrogramAlt'
   | 'components.audio.spectrogramGeneratingAria'
   | 'components.audio.generating'
   | 'components.audio.queuePosition' // params: position
@@ -2873,6 +3015,20 @@ export type TranslationKey =
   | 'components.audioPlayer.clipExtraction.extractError'
   | 'components.audioPlayer.clipExtraction.formatLabel'
   | 'components.audioPlayer.clipExtraction.rangeLabel' // params: start, end
+  | 'components.audioPlayer.processing.playSelection'
+  | 'components.audioPlayer.processing.skipToStart'
+  | 'components.audioPlayer.processing.clearSelection'
+  | 'components.audioPlayer.processing.gain'
+  | 'components.audioPlayer.processing.denoise'
+  | 'components.audioPlayer.processing.denoiseOff'
+  | 'components.audioPlayer.processing.denoiseLight'
+  | 'components.audioPlayer.processing.denoiseMedium'
+  | 'components.audioPlayer.processing.denoiseHeavy'
+  | 'components.audioPlayer.processing.normalize'
+  | 'components.audioPlayer.processing.normalizeTooltip'
+  | 'components.audioPlayer.processing.export'
+  | 'components.audioPlayer.processing.exportOriginal'
+  | 'components.audioPlayer.processing.processingActive'
   | 'components.weatherInfo.errors.loadFailed'
   | 'components.tls.certificateInstalled'
   | 'components.tls.browseFile'
@@ -2909,6 +3065,7 @@ export type TranslationKey =
   | 'errors.alert.typesRequired'
   | 'errors.alert.duplicateName'
   | 'errors.alert.invalidJSON'
+  | 'errors.alert.invalidEscalation'
   | 'errors.detection.invalidDate' // params: paramName
   | 'errors.backup.invalidType'
   | 'errors.backup.alreadyRunning'
@@ -2980,7 +3137,85 @@ export type TranslationKey =
   | 'weather.moon.waningCrescent'
   | 'weather.birding.excellent'
   | 'weather.birding.moderate'
-  | 'weather.birding.poor';
+  | 'weather.birding.poor'
+  | 'wizard.skip'
+  | 'wizard.back'
+  | 'wizard.next'
+  | 'wizard.done'
+  | 'wizard.progress' // params: current, total
+  | 'wizard.progressLabel'
+  | 'wizard.whatsNew.title' // params: version
+  | 'wizard.steps.welcome.title'
+  | 'wizard.steps.welcome.heading'
+  | 'wizard.steps.welcome.description'
+  | 'wizard.steps.welcome.credit'
+  | 'wizard.steps.welcome.cta'
+  | 'wizard.steps.locationLanguage.title'
+  | 'wizard.steps.locationLanguage.uiLanguageLabel'
+  | 'wizard.steps.locationLanguage.uiLanguageHelp'
+  | 'wizard.steps.locationLanguage.speciesLanguageLabel'
+  | 'wizard.steps.locationLanguage.speciesLanguageHelp'
+  | 'wizard.steps.locationLanguage.locationLabel'
+  | 'wizard.steps.locationLanguage.locationHelp'
+  | 'wizard.steps.locationLanguage.latitudeLabel'
+  | 'wizard.steps.locationLanguage.longitudeLabel'
+  | 'wizard.steps.locationLanguage.useMyLocation'
+  | 'wizard.steps.locationLanguage.locationDetected'
+  | 'wizard.steps.locationLanguage.locationError'
+  | 'wizard.steps.locationLanguage.locationDenied'
+  | 'wizard.steps.audioSource.title'
+  | 'wizard.steps.audioSource.sourceTypeLabel'
+  | 'wizard.steps.audioSource.soundcard'
+  | 'wizard.steps.audioSource.rtspStream'
+  | 'wizard.steps.audioSource.deviceLabel'
+  | 'wizard.steps.audioSource.deviceLoading'
+  | 'wizard.steps.audioSource.noDevicesFound'
+  | 'wizard.steps.audioSource.rtspUrlLabel'
+  | 'wizard.steps.audioSource.rtspUrlPlaceholder'
+  | 'wizard.steps.audioSource.rtspUrlHelp'
+  | 'wizard.steps.audioSource.additionalSourcesHint'
+  | 'wizard.steps.detection.title'
+  | 'wizard.steps.detection.description'
+  | 'wizard.steps.detection.balanced'
+  | 'wizard.steps.detection.balancedDesc'
+  | 'wizard.steps.detection.balancedRecommended'
+  | 'wizard.steps.detection.highAccuracy'
+  | 'wizard.steps.detection.highAccuracyDesc'
+  | 'wizard.steps.detection.highSensitivity'
+  | 'wizard.steps.detection.highSensitivityDesc'
+  | 'wizard.steps.detection.threshold'
+  | 'wizard.steps.detection.fpFilterNote'
+  | 'wizard.steps.integration.title'
+  | 'wizard.steps.integration.privacyFilterLabel'
+  | 'wizard.steps.integration.privacyFilterHelp'
+  | 'wizard.steps.integration.birdweatherLabel'
+  | 'wizard.steps.integration.birdweatherHelp'
+  | 'wizard.steps.integration.birdweatherIdLabel'
+  | 'wizard.steps.integration.birdweatherIdPlaceholder'
+  | 'wizard.steps.integration.errorReportingLabel'
+  | 'wizard.steps.integration.errorReportingHelp'
+  | 'wizard.steps.responsibleUse.title'
+  | 'wizard.steps.responsibleUse.intro'
+  | 'wizard.steps.responsibleUse.point1'
+  | 'wizard.steps.responsibleUse.point2'
+  | 'wizard.steps.responsibleUse.point3'
+  | 'wizard.steps.responsibleUse.point4'
+  | 'wizard.steps.responsibleUse.citizenScienceHeading'
+  | 'wizard.steps.responsibleUse.citizenPoint1'
+  | 'wizard.steps.responsibleUse.citizenPoint2'
+  | 'wizard.steps.responsibleUse.citizenPoint3'
+  | 'wizard.steps.responsibleUse.outro'
+  | 'wizard.steps.responsibleUse.acknowledge'
+  | 'restart.applicationRestart'
+  | 'restart.containerRestart'
+  | 'restart.confirmTitle'
+  | 'restart.confirmApplicationMessage'
+  | 'restart.confirmContainerMessage'
+  | 'restart.inProgress'
+  | 'restart.bannerTitle'
+  | 'restart.bannerMessage'
+  | 'restart.bannerAction'
+  | 'restart.restartFailed';
 
 /**
  * Parameter types for translations that require parameters
@@ -3013,6 +3248,12 @@ export type TranslationParams = {
     threshold: string | number;
   };
   'notifications.content.error.categoryError': { category: string | number };
+  'notifications.content.error.burstTitle': { component: string | number };
+  'notifications.content.error.burstMessage': {
+    count: string | number;
+    window_minutes: string | number;
+    sample_error: string | number;
+  };
   'notifications.content.cleanup.completeMessage': { space: string | number };
   'notifications.content.buffer.overloadMessage': {
     dropRate: string | number;
@@ -3083,6 +3324,26 @@ export type TranslationParams = {
   'detections.titles.species': { species: string | number; date: string | number };
   'detections.titles.search': { query: string | number };
   'detections.titles.allDetections': { date: string | number };
+  'detections.titles.hourlyDateRange': {
+    hour: string | number;
+    startDate: string | number;
+    endDate: string | number;
+  };
+  'detections.titles.hourlyRangeDateRange': {
+    startHour: string | number;
+    endHour: string | number;
+    startDate: string | number;
+    endDate: string | number;
+  };
+  'detections.titles.speciesDateRange': {
+    species: string | number;
+    startDate: string | number;
+    endDate: string | number;
+  };
+  'detections.titles.allDetectionsDateRange': {
+    startDate: string | number;
+    endDate: string | number;
+  };
   'detections.pagination.showing': {
     from: string | number;
     to: string | number;
@@ -3093,6 +3354,7 @@ export type TranslationParams = {
   'detections.aria.error': { error: string | number };
   'detections.errors.loadFailed': { status: string | number };
   'species.rarity.basedOnLocation': { latitude: string | number; longitude: string | number };
+  'spectrogram.gain.level': { value: string | number };
   'system.systemInfo.temperatureValue': { temp: string | number };
   'system.errors.systemInfo': { error: string | number };
   'system.errors.diskUsage': { error: string | number };
@@ -3140,6 +3402,14 @@ export type TranslationParams = {
   'system.database.migration.prerequisites.warningCount': { count: string | number };
   'analytics.advanced.speciesSelection': { count: string | number; max: string | number };
   'analytics.advanced.detections': { count: string | number };
+  'analytics.birdMigration.season.current': { season: string | number };
+  'analytics.birdMigration.season.range': { start: string | number; end: string | number };
+  'analytics.birdMigration.season.dataThrough': { date: string | number };
+  'analytics.birdMigration.season.observedThrough': { date: string | number };
+  'analytics.birdMigration.stats.windowDays': { days: string | number };
+  'analytics.birdMigration.tables.explainerRecent': { days: string | number };
+  'analytics.birdMigration.tables.explainerQuiet': { days: string | number };
+  'analytics.birdMigration.tables.explainerDisappearances': { days: string | number };
   'settings.notFound.message': { section: string | number };
   'settings.main.sections.falsePositiveFilter.detectionCount': {
     count: string | number;
@@ -3228,6 +3498,8 @@ export type TranslationParams = {
   'quietHours.indicator.tooltip': { count: string | number };
   'errors.detection.invalidDate': { paramName: string | number };
   'errors.backup.insufficientSpace': { needed: string | number; available: string | number };
+  'wizard.progress': { current: string | number; total: string | number };
+  'wizard.whatsNew.title': { version: string | number };
 };
 
 /**

@@ -173,6 +173,41 @@ func TestGetAppConfig_NoSecurity(t *testing.T) {
 	assert.Empty(t, response.Security.AuthConfig.EnabledProviders, "No OAuth providers should be enabled")
 }
 
+// TestGetAppConfig_SeasonalTrackingPublicConfig verifies seasonal tracking config is exposed publicly.
+func TestGetAppConfig_SeasonalTrackingPublicConfig(t *testing.T) {
+	e, controller := setupAppConfigTest(t, nil)
+	controller.Settings.BirdNET.Latitude = 60.1699
+	controller.Settings.Realtime.SpeciesTracking.SeasonalTracking = conf.SeasonalTrackingSettings{
+		Enabled:    true,
+		WindowDays: 14,
+		Seasons: map[string]conf.Season{
+			"spring": {StartMonth: 3, StartDay: 20},
+			"summer": {StartMonth: 6, StartDay: 21},
+			"fall":   {StartMonth: 9, StartDay: 22},
+			"winter": {StartMonth: 12, StartDay: 21},
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/app/config", http.NoBody)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/api/v2/app/config")
+
+	err := controller.GetAppConfig(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var response AppConfigResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+
+	assert.True(t, response.SeasonalTracking.Enabled)
+	assert.Equal(t, 14, response.SeasonalTracking.WindowDays)
+	require.Len(t, response.SeasonalTracking.Seasons, 4)
+	assert.Equal(t, 3, response.SeasonalTracking.Seasons["spring"].StartMonth)
+	assert.Equal(t, 20, response.SeasonalTracking.Seasons["spring"].StartDay)
+}
+
 // TestGetAppConfig_BasicAuthEnabled tests the endpoint with BasicAuth enabled.
 func TestGetAppConfig_BasicAuthEnabled(t *testing.T) {
 	securityConfig := conf.Security{
@@ -870,16 +905,17 @@ func TestGetAppConfig_NoExtraFields(t *testing.T) {
 
 	// Only these top-level keys should exist
 	expectedKeys := map[string]bool{
-		"csrfToken":       true,
-		"security":        true,
-		"version":         true,
-		"basePath":        true,
-		"colorScheme":     true,
-		"customColors":    true,
-		"logoStyle":       true,
-		"liveSpectrogram": true,
-		"freshInstall":    true,
-		"newVersion":      true,
+		"csrfToken":        true,
+		"security":         true,
+		"seasonalTracking": true,
+		"version":          true,
+		"basePath":         true,
+		"colorScheme":      true,
+		"customColors":     true,
+		"logoStyle":        true,
+		"liveSpectrogram":  true,
+		"freshInstall":     true,
+		"newVersion":       true,
 	}
 
 	for key := range rawResponse {

@@ -2249,6 +2249,99 @@ func (ds *Datastore) parseDateRange(startDate, endDate string) (start, end int64
 	return start, end, nil
 }
 
+// GetEarliestDetectionDate retrieves the earliest non-false-positive detection time.
+func (ds *Datastore) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	type earliestDetectionResult struct {
+		EarliestTime int64 `gorm:"column:earliest_time"`
+	}
+
+	var result earliestDetectionResult
+	err := ds.manager.DB().WithContext(ctx).
+		Table("detections d").
+		Joins("LEFT JOIN detection_reviews dr ON d.id = dr.detection_id").
+		Select("MIN(d.detected_at) as earliest_time").
+		Where("(dr.verified IS NULL OR dr.verified != ?)", string(entities.VerificationFalsePositive)).
+		Scan(&result).Error
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if result.EarliestTime == 0 {
+		return time.Time{}, nil
+	}
+
+	return time.Unix(result.EarliestTime, 0).In(ds.timezone), nil
+}
+
+// GetBirdMigrationDisappearances retrieves species that disappeared for longer than the
+// configured threshold and were later detected again within the selected date range.
+func (ds *Datastore) GetBirdMigrationDisappearances(
+	ctx context.Context,
+	startDate, endDate string,
+	windowDays int,
+) ([]datastore.BirdMigrationDisappearanceData, error) {
+	// Validate date formats before using in SQL
+	if startDate != "" {
+		if _, err := time.Parse(time.DateOnly, startDate); err != nil {
+			return nil, fmt.Errorf("invalid start date format (expected YYYY-MM-DD): %w", err)
+		}
+	}
+	if endDate != "" {
+		if _, err := time.Parse(time.DateOnly, endDate); err != nil {
+			return nil, fmt.Errorf("invalid end date format (expected YYYY-MM-DD): %w", err)
+		}
+	}
+
+	type activityRow struct {
+		ScientificName string `gorm:"column:scientific_name"`
+		Date           string `gorm:"column:date"`
+	}
+
+	var rows []activityRow
+
+	var dateExpr string
+	if ds.manager.IsMySQL() {
+		dateExpr = "DATE(FROM_UNIXTIME(d.detected_at))"
+	} else {
+		dateExpr = "date(d.detected_at, 'unixepoch', 'localtime')"
+	}
+
+	query := ds.manager.DB().WithContext(ctx).
+		Table("detections d").
+		Select(fmt.Sprintf("l.scientific_name as scientific_name, %s as date", dateExpr)).
+		Joins("JOIN labels l ON d.label_id = l.id").
+		Joins("LEFT JOIN detection_reviews dr ON d.id = dr.detection_id").
+		Where("(dr.verified IS NULL OR dr.verified != ?)", string(entities.VerificationFalsePositive)).
+		Group(fmt.Sprintf("l.scientific_name, %s", dateExpr)).
+		Order("l.scientific_name ASC, date ASC")
+
+	switch {
+	case startDate != "" && endDate != "":
+		query = query.Where(fmt.Sprintf("%s BETWEEN ? AND ?", dateExpr), startDate, endDate)
+	case startDate != "":
+		query = query.Where(fmt.Sprintf("%s >= ?", dateExpr), startDate)
+	case endDate != "":
+		query = query.Where(fmt.Sprintf("%s <= ?", dateExpr), endDate)
+	}
+
+	if err := query.Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	activityData := make([]datastore.BirdMigrationActivityData, 0, len(rows))
+	for i := range rows {
+		scientificName := extractScientificName(rows[i].ScientificName)
+		activityData = append(activityData, datastore.BirdMigrationActivityData{
+			ScientificName: scientificName,
+			CommonName:     ds.resolveCommonName(scientificName),
+			SpeciesCode:    ds.speciesCodeMap[scientificName],
+			Date:           rows[i].Date,
+		})
+	}
+
+	return datastore.BuildBirdMigrationDisappearances(activityData, windowDays), nil
+}
+
 // GetSpeciesSummaryData retrieves species summary data.
 func (ds *Datastore) GetSpeciesSummaryData(ctx context.Context, startDate, endDate string) ([]datastore.SpeciesSummaryData, error) {
 	start, end, err := ds.parseDateRange(startDate, endDate)

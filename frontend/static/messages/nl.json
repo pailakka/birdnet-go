@@ -205,7 +205,8 @@
     "speciesAnalytics": "Soortanalyses",
     "advancedAnalytics": "Geavanceerde analyses",
     "detectionDetails": "Detectiedetails",
-    "settingsNotAvailable": "Instellingen niet beschikbaar"
+    "settingsNotAvailable": "Instellingen niet beschikbaar",
+    "birdMigrationAnalytics": "Bird Migration"
   },
   "navigation": {
     "dashboard": "Overzicht",
@@ -227,7 +228,8 @@
     "analyticsSubmenu": "Statistiek submenu",
     "settingsSubmenu": "Instellingen submenu",
     "systemSubmenu": "Systeemmenu",
-    "systemTerminal": "Terminal"
+    "systemTerminal": "Terminal",
+    "birdMigration": "Bird Migration"
   },
   "about": {
     "title": "BirdNET-Go",
@@ -753,7 +755,11 @@
       "hourlyRange": "Herkend tussen {startHour}:00 en {endHour}:00 uur op {date}",
       "species": "{species}, herkend op {date}",
       "search": "Gevonden voor \"{query}\"",
-      "allDetections": "Alles herkend op {date}"
+      "allDetections": "Alles herkend op {date}",
+      "hourlyDateRange": "Results for hour {hour}:00 from {startDate} to {endDate}",
+      "hourlyRangeDateRange": "Results for hours {startHour}:00-{endHour}:00 from {startDate} to {endDate}",
+      "speciesDateRange": "Results for {species} from {startDate} to {endDate}",
+      "allDetectionsDateRange": "All detections from {startDate} to {endDate}"
     },
     "detail": {
       "species": "Soort",
@@ -1607,6 +1613,86 @@
     },
     "errors": {
       "loadFailed": "Analysegegevens konden niet worden geladen. Probeer het opnieuw."
+    },
+    "birdMigration": {
+      "title": "Bird Migration",
+      "subtitle": "Track seasonal arrivals, quiet periods, and overall activity using existing analytics data.",
+      "season": {
+        "current": "Season: {season}",
+        "range": "Season range: {start} to {end}",
+        "dataThrough": "Data through {date}",
+        "observedThrough": "Observed through {date}"
+      },
+      "controls": {
+        "previousSeason": "Previous Season",
+        "nextSeason": "Next Season",
+        "season": "Season",
+        "currentSeason": "Current Season"
+      },
+      "states": {
+        "disabledTitle": "Seasonal tracking is unavailable",
+        "disabledDescription": "Enable seasonal tracking and configure at least one season to view bird migration analytics."
+      },
+      "stats": {
+        "seasonSpecies": "Season Species",
+        "recentArrivals": "Recent Arrivals",
+        "quietSpecies": "Quiet Species",
+        "seasonDetections": "Season Detections",
+        "windowDays": "{days}-day window"
+      },
+      "charts": {
+        "arrivals": {
+          "title": "Cumulative Arrivals",
+          "description": "Shows when species first appeared during the selected season.",
+          "axisDate": "Date",
+          "axisCumulativeSpecies": "Cumulative Species",
+          "newSpecies": "New Species",
+          "cumulativeSpecies": "Cumulative Species"
+        },
+        "activity": {
+          "title": "Daily Season Activity",
+          "description": "Compares daily detections with the number of active species in the selected season.",
+          "axisDate": "Date",
+          "axisDetections": "Detections",
+          "axisActiveSpecies": "Active Species",
+          "detections": "Detections",
+          "activeSpecies": "Active Species"
+        }
+      },
+      "tables": {
+        "recentArrivals": "Recent Arrivals",
+        "recentArrivalsDescription": "Species first detected within the configured seasonal window.",
+        "quietSpecies": "Quiet Species",
+        "quietSpeciesDescription": "Species not heard within the configured seasonal window.",
+        "roster": "Season Roster",
+        "rosterDescription": "All species detected during the selected season, sorted by active days.",
+        "loadingThumbnails": "Loading thumbnails...",
+        "emptyTitle": "No migration data yet",
+        "noRecentArrivals": "No recent arrivals match the selected season window.",
+        "noQuietSpecies": "No species have gone quiet within the selected season window.",
+        "noSeasonDetections": "No detections were found for the selected season.",
+        "columns": {
+          "species": "Species",
+          "firstHeard": "First Heard",
+          "lastHeard": "Last Heard",
+          "activeDays": "Active Days",
+          "detections": "Detections",
+          "daysQuiet": "Days Quiet",
+          "date": "Date",
+          "lastHeardBeforeGap": "Last Heard Before Gap",
+          "returnedOn": "Returned On",
+          "gapDays": "Gap Days"
+        },
+        "explainerRecent": "Recent Arrivals: first heard within the last {days} days of the observed season range.",
+        "explainerQuiet": "Quiet Species: not heard within the last {days} days of the observed season range.",
+        "disappearances": "Disappearances",
+        "disappearancesDescription": "Species that were absent for longer than the configured seasonal window and were later heard again.",
+        "noDisappearances": "No species disappeared and returned within the selected season window.",
+        "explainerDisappearances": "Disappearances: absent for more than {days} days and then heard again later in the same observed season range."
+      },
+      "errors": {
+        "loadFailed": "Failed to load bird migration analytics. Please try again."
+      }
     }
   },
   "settings": {
