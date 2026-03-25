@@ -306,6 +306,13 @@ func (a *SaveAudioAction) Execute(ctx context.Context, _ any) error {
 	}
 
 	// Resolve NoteID from DetectionContext (set by DatabaseAction).
+	// The NoteID field is 0 at construction time because the action is built
+	// before the database save runs. Since SaveAudioAction runs as an independent
+	// job queue task, it may start before the CompositeAction (DB -> SSE -> MQTT)
+	// finishes on another worker. Poll briefly for the NoteID to be set, which
+	// ensures the DB save has committed before we use the ID for spectrogram
+	// pre-render correlation. If the timeout expires, proceed with NoteID=0 --
+	// the audio file is still saved, just without pre-render correlation.
 	if a.DetectionCtx != nil {
 		const noteIDWaitTimeout = 5 * time.Second
 		const noteIDPollInterval = 50 * time.Millisecond
@@ -315,8 +322,11 @@ func (a *SaveAudioAction) Execute(ctx context.Context, _ any) error {
 				a.NoteID = liveID
 				break
 			}
+			// Use select to respect context cancellation (e.g., during shutdown)
+			// instead of blocking with time.Sleep.
 			select {
 			case <-ctx.Done():
+				// Context cancelled; proceed with current NoteID (may be 0)
 			case <-time.After(noteIDPollInterval):
 			}
 			if ctx.Err() != nil {
@@ -324,7 +334,6 @@ func (a *SaveAudioAction) Execute(ctx context.Context, _ any) error {
 			}
 		}
 	}
-
 	// Get the full path by joining the export path with the relative clip name
 	outputPath := filepath.Join(a.Settings.Realtime.Audio.Export.Path, a.ClipName)
 

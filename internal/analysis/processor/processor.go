@@ -1833,7 +1833,6 @@ func (p *Processor) readCaptureSegment(sourceID string, startTime time.Time, dur
 	endTime := startTime.Add(time.Duration(duration) * time.Second)
 	return cb.ReadSegment(startTime, endTime)
 }
-
 // GetBwClient safely returns the current BirdWeather client
 func (p *Processor) GetBwClient() *birdweather.BwClient {
 	p.bwClientMutex.RLock()
