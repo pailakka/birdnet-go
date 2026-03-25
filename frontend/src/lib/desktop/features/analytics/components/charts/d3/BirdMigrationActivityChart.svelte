@@ -12,7 +12,7 @@
   import type { ChartTheme } from './utils/theme';
   import { t } from '$lib/i18n';
   import { getLocalDateString } from '$lib/utils/date';
-  import type { BirdMigrationActivityDatum } from '../../../utils/birdMigration';
+  import type { BirdMigrationActivityDatum } from '../../../utils/birdMigrationTypes';
 
   interface ActivityDatum {
     date: Date;

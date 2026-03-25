@@ -7,11 +7,20 @@
     formatBirdMigrationDateTime,
     formatBirdMigrationNumber,
     getBirdMigrationSpeciesInitials,
-    type BirdMigrationDetectionsSortBy,
-    type BirdMigrationSpeciesRecord,
-  } from '../../utils/birdMigration';
+  } from '../../utils/birdMigrationDisplay';
+  import type {
+    BirdMigrationDetectionsSortBy,
+    BirdMigrationSpeciesRecord,
+  } from '../../utils/birdMigrationTypes';
 
   type Variant = 'recent-arrivals' | 'quiet-species' | 'roster';
+  type VariantConfig = {
+    accentClasses: string;
+    description: string;
+    emptyDescription: string;
+    sortBy: BirdMigrationDetectionsSortBy;
+    title: string;
+  };
 
   interface Props {
     variant: Variant;
@@ -22,61 +31,35 @@
 
   let { variant, rows, countLabel, onSpeciesClick }: Props = $props();
 
-  function getAccentClasses(currentVariant: Variant): string {
-    switch (currentVariant) {
-      case 'recent-arrivals':
-        return 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]';
-      case 'quiet-species':
-        return 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]';
-      case 'roster':
-        return 'bg-[var(--color-secondary)]/10 text-[var(--color-secondary)]';
+  const config = $derived.by<VariantConfig>(() => {
+    if (variant === 'recent-arrivals') {
+      return {
+        accentClasses: 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]',
+        description: t('analytics.birdMigration.tables.recentArrivalsDescription'),
+        emptyDescription: t('analytics.birdMigration.tables.noRecentArrivals'),
+        sortBy: 'date_asc',
+        title: t('analytics.birdMigration.tables.recentArrivals'),
+      };
     }
 
-    return '';
-  }
-
-  function getSortBy(currentVariant: Variant): BirdMigrationDetectionsSortBy {
-    return currentVariant === 'recent-arrivals' ? 'date_asc' : 'date_desc';
-  }
-
-  function getTitle(currentVariant: Variant): string {
-    switch (currentVariant) {
-      case 'recent-arrivals':
-        return t('analytics.birdMigration.tables.recentArrivals');
-      case 'quiet-species':
-        return t('analytics.birdMigration.tables.quietSpecies');
-      case 'roster':
-        return t('analytics.birdMigration.tables.roster');
+    if (variant === 'quiet-species') {
+      return {
+        accentClasses: 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
+        description: t('analytics.birdMigration.tables.quietSpeciesDescription'),
+        emptyDescription: t('analytics.birdMigration.tables.noQuietSpecies'),
+        sortBy: 'date_desc',
+        title: t('analytics.birdMigration.tables.quietSpecies'),
+      };
     }
 
-    return '';
-  }
-
-  function getDescription(currentVariant: Variant): string {
-    switch (currentVariant) {
-      case 'recent-arrivals':
-        return t('analytics.birdMigration.tables.recentArrivalsDescription');
-      case 'quiet-species':
-        return t('analytics.birdMigration.tables.quietSpeciesDescription');
-      case 'roster':
-        return t('analytics.birdMigration.tables.rosterDescription');
-    }
-
-    return '';
-  }
-
-  function getEmptyDescription(currentVariant: Variant): string {
-    switch (currentVariant) {
-      case 'recent-arrivals':
-        return t('analytics.birdMigration.tables.noRecentArrivals');
-      case 'quiet-species':
-        return t('analytics.birdMigration.tables.noQuietSpecies');
-      case 'roster':
-        return t('analytics.birdMigration.tables.noSeasonDetections');
-    }
-
-    return '';
-  }
+    return {
+      accentClasses: 'bg-[var(--color-secondary)]/10 text-[var(--color-secondary)]',
+      description: t('analytics.birdMigration.tables.rosterDescription'),
+      emptyDescription: t('analytics.birdMigration.tables.noSeasonDetections'),
+      sortBy: 'date_desc',
+      title: t('analytics.birdMigration.tables.roster'),
+    };
+  });
 
   const displayCount = $derived(countLabel ?? formatBirdMigrationNumber(rows.length));
 </script>
@@ -85,9 +68,9 @@
   <div class="card-body p-4 md:p-6">
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="card-title">{getTitle(variant)}</h2>
+        <h2 class="card-title">{config.title}</h2>
         <p class="text-sm text-[var(--color-base-content)] opacity-70">
-          {getDescription(variant)}
+          {config.description}
         </p>
       </div>
       <span class="text-sm text-[var(--color-base-content)] opacity-70">
@@ -98,7 +81,7 @@
     {#if rows.length === 0}
       <EmptyState
         title={t('analytics.birdMigration.tables.emptyTitle')}
-        description={getEmptyDescription(variant)}
+        description={config.emptyDescription}
         className={variant === 'roster' ? 'py-10' : 'py-8'}
       />
     {:else}
@@ -129,7 +112,7 @@
                   <button
                     type="button"
                     class="flex items-center gap-3 text-left"
-                    onclick={() => onSpeciesClick(species.scientific_name, getSortBy(variant))}
+                    onclick={() => onSpeciesClick(species.scientific_name, config.sortBy)}
                   >
                     {#if species.thumbnail_url}
                       <img
@@ -140,7 +123,7 @@
                       />
                     {:else}
                       <div
-                        class={`size-10 rounded-lg flex items-center justify-center text-xs font-semibold ${getAccentClasses(variant)}`}
+                        class={`size-10 rounded-lg flex items-center justify-center text-xs font-semibold ${config.accentClasses}`}
                       >
                         {getBirdMigrationSpeciesInitials(species.common_name)}
                       </div>
