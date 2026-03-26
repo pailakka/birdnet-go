@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"slices"
 	"sort"
 	"time"
 
@@ -265,7 +266,7 @@ func (c *Controller) buildBirdMigrationPageThumbnailMap(
 		scientificNames = append(scientificNames, scientificName)
 	}
 
-	sort.Strings(scientificNames)
+	slices.Sort(scientificNames)
 	return c.buildThumbnailMap(scientificNames)
 }
 
