@@ -95,13 +95,10 @@
             type="button"
             class="btn btn-sm btn-outline"
             onclick={() =>
-              birdMigration.seasonsResponse?.current_season_start &&
-              birdMigration.setSelectedSeasonStart(
-                birdMigration.seasonsResponse.current_season_start
-              )}
-            disabled={!birdMigration.seasonsResponse?.current_season_start ||
-              birdMigration.seasonsResponse.current_season_start ===
-                birdMigration.selectedSeasonStart}
+              birdMigration.currentSeasonStart &&
+              birdMigration.setSelectedSeasonStart(birdMigration.currentSeasonStart)}
+            disabled={!birdMigration.currentSeasonStart ||
+              birdMigration.currentSeasonStart === birdMigration.selectedSeasonStart}
           >
             {t('analytics.birdMigration.controls.currentSeason')}
           </button>
@@ -128,7 +125,7 @@
     <ErrorAlert message={birdMigration.error} />
   {/if}
 
-  {#if !birdMigration.isMetadataLoading && birdMigration.seasonsResponse && !birdMigration.hasAvailableSeasons}
+  {#if !birdMigration.isLoading && birdMigration.pageData && !birdMigration.hasAvailableSeasons}
     <div class="card bg-[var(--color-base-100)] shadow-xs">
       <div class="card-body">
         <EmptyState
@@ -141,11 +138,11 @@
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
       <StatCard
         title={t('analytics.birdMigration.stats.seasonSpecies')}
-        value={birdMigration.migrationData
-          ? formatBirdMigrationNumber(birdMigration.migrationData.summary.speciesCount)
+        value={birdMigration.pageData
+          ? formatBirdMigrationNumber(birdMigration.pageData.summary.species_count)
           : 0}
         subtitle={birdMigration.selectedSeason.label}
-        isLoading={birdMigration.isMetadataLoading || birdMigration.isLoading}
+        isLoading={birdMigration.isLoading}
         iconClassName="bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
       >
         {#snippet icon()}
@@ -155,11 +152,11 @@
 
       <StatCard
         title={t('analytics.birdMigration.stats.recentArrivals')}
-        value={birdMigration.migrationData
-          ? formatBirdMigrationNumber(birdMigration.migrationData.summary.recentArrivalsCount)
+        value={birdMigration.pageData
+          ? formatBirdMigrationNumber(birdMigration.pageData.summary.recent_arrivals_count)
           : 0}
         subtitle={t('analytics.birdMigration.stats.windowDays', { days: birdMigration.windowDays })}
-        isLoading={birdMigration.isMetadataLoading || birdMigration.isLoading}
+        isLoading={birdMigration.isLoading}
         iconClassName="bg-[var(--color-success)]/15 text-[var(--color-success)]"
       >
         {#snippet icon()}
@@ -169,11 +166,11 @@
 
       <StatCard
         title={t('analytics.birdMigration.stats.quietSpecies')}
-        value={birdMigration.migrationData
-          ? formatBirdMigrationNumber(birdMigration.migrationData.summary.quietSpeciesCount)
+        value={birdMigration.pageData
+          ? formatBirdMigrationNumber(birdMigration.pageData.summary.quiet_species_count)
           : 0}
         subtitle={t('analytics.birdMigration.stats.windowDays', { days: birdMigration.windowDays })}
-        isLoading={birdMigration.isMetadataLoading || birdMigration.isLoading}
+        isLoading={birdMigration.isLoading}
         iconClassName="bg-[var(--color-warning)]/15 text-[var(--color-warning)]"
       >
         {#snippet icon()}
@@ -183,15 +180,15 @@
 
       <StatCard
         title={t('analytics.birdMigration.stats.seasonDetections')}
-        value={birdMigration.migrationData
-          ? formatBirdMigrationNumber(birdMigration.migrationData.summary.detectionCount)
+        value={birdMigration.pageData
+          ? formatBirdMigrationNumber(birdMigration.pageData.summary.detection_count)
           : 0}
         subtitle={birdMigration.selectedSeason.is_current
           ? t('analytics.birdMigration.season.observedThrough', {
               date: formatBirdMigrationDate(birdMigration.observedEndDate),
             })
           : formatBirdMigrationDate(birdMigration.selectedSeason.end_date)}
-        isLoading={birdMigration.isMetadataLoading || birdMigration.isLoading}
+        isLoading={birdMigration.isLoading}
         iconClassName="bg-[var(--color-secondary)]/15 text-[var(--color-secondary)]"
       >
         {#snippet icon()}
@@ -230,9 +227,9 @@
             </p>
           </div>
 
-          {#if !birdMigration.isLoading && birdMigration.migrationData && birdMigration.migrationData.arrivalTimeline.length > 0}
+          {#if !birdMigration.isLoading && birdMigration.pageData && birdMigration.pageData.arrival_timeline.length > 0}
             <div class="mt-4 h-80">
-              <BirdMigrationArrivalChart data={birdMigration.migrationData.arrivalTimeline} />
+              <BirdMigrationArrivalChart data={birdMigration.pageData.arrival_timeline} />
             </div>
           {:else}
             <div class="py-8 text-center text-sm text-[var(--color-base-content)] opacity-60">
@@ -251,9 +248,9 @@
             </p>
           </div>
 
-          {#if !birdMigration.isLoading && birdMigration.migrationData && birdMigration.migrationData.activityTimeline.length > 0}
+          {#if !birdMigration.isLoading && birdMigration.pageData && birdMigration.pageData.activity_timeline.length > 0}
             <div class="mt-4 h-80">
-              <BirdMigrationActivityChart data={birdMigration.migrationData.activityTimeline} />
+              <BirdMigrationActivityChart data={birdMigration.pageData.activity_timeline} />
             </div>
           {:else}
             <div class="py-8 text-center text-sm text-[var(--color-base-content)] opacity-60">
@@ -264,32 +261,30 @@
       </div>
     </div>
 
-    {#if birdMigration.migrationData}
+    {#if birdMigration.pageData}
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <BirdMigrationSpeciesTableSection
           variant="recent-arrivals"
-          rows={birdMigration.migrationData.recentArrivals}
+          rows={birdMigration.pageData.recent_arrivals}
           onSpeciesClick={birdMigration.openDetections}
         />
 
         <BirdMigrationSpeciesTableSection
           variant="quiet-species"
-          rows={birdMigration.migrationData.quietSpecies}
+          rows={birdMigration.pageData.quiet_species}
           onSpeciesClick={birdMigration.openDetections}
         />
       </div>
 
       <BirdMigrationDisappearancesSection
-        rows={birdMigration.migrationData.disappearances}
+        rows={birdMigration.pageData.disappearances}
         onSpeciesClick={scientificName => birdMigration.openDetections(scientificName, 'date_asc')}
       />
 
       <BirdMigrationSpeciesTableSection
         variant="roster"
-        rows={birdMigration.migrationData.roster}
-        countLabel={birdMigration.isThumbnailLoading
-          ? t('analytics.birdMigration.tables.loadingThumbnails')
-          : formatBirdMigrationNumber(birdMigration.migrationData.roster.length)}
+        rows={birdMigration.pageData.roster}
+        countLabel={formatBirdMigrationNumber(birdMigration.pageData.roster.length)}
         onSpeciesClick={birdMigration.openDetections}
       />
     {/if}

@@ -1,5 +1,5 @@
 import { t } from '$lib/i18n';
-import { getLocalDateString, parseLocalDateString } from '$lib/utils/date';
+import { parseLocalDateString } from '$lib/utils/date';
 
 import type {
   BirdMigrationDetectionsSortBy,
@@ -65,18 +65,6 @@ export function buildBirdMigrationDisplaySeasons(
   }));
 }
 
-export function resolveBirdMigrationSelectedSeasonStart(
-  seasons: Array<Pick<BirdMigrationDisplaySeason, 'start_date'>>,
-  currentSeasonStart: string,
-  requestedSeasonStart: string | null
-): string {
-  if (requestedSeasonStart && seasons.some(season => season.start_date === requestedSeasonStart)) {
-    return requestedSeasonStart;
-  }
-
-  return currentSeasonStart || seasons[0]?.start_date || '';
-}
-
 export function findBirdMigrationSeason<T extends { start_date: string }>(
   seasons: T[],
   seasonStart: string
@@ -101,17 +89,6 @@ export function getBirdMigrationAdjacentSeasonStart<T extends { start_date: stri
 
   const adjacentSeason = seasons.at(adjacentIndex);
   return adjacentSeason?.start_date ?? null;
-}
-
-export function getBirdMigrationObservedEndDate(
-  season: BirdMigrationSeason,
-  today: string = getLocalDateString()
-): string {
-  if (season.is_current && today < season.end_date) {
-    return today;
-  }
-
-  return season.end_date;
 }
 
 export function formatBirdMigrationDate(dateString: string): string {

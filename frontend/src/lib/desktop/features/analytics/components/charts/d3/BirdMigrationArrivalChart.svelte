@@ -43,8 +43,8 @@
     data
       .map(item => ({
         date: new Date(`${item.date}T12:00:00`),
-        newSpeciesCount: item.newSpeciesCount,
-        cumulativeSpeciesCount: item.cumulativeSpeciesCount,
+        newSpeciesCount: item.new_species_count,
+        cumulativeSpeciesCount: item.cumulative_species_count,
       }))
       .filter(item => !Number.isNaN(item.date.getTime()))
   );
