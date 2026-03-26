@@ -163,6 +163,7 @@ func (c *Controller) initAnalyticsRoutes() {
 	speciesGroup.GET("/diversity", c.GetSpeciesDiversity)          // Species diversity over time
 
 	birdMigrationGroup := analyticsGroup.Group("/bird-migration")
+	birdMigrationGroup.GET("/page", c.GetBirdMigrationPage)
 	birdMigrationGroup.GET("/seasons", c.GetBirdMigrationSeasons)
 	birdMigrationGroup.GET("/disappearances", c.GetBirdMigrationDisappearances)
 

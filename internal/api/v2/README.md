@@ -91,6 +91,7 @@ Lightweight connectivity check. Returns a minimal response with no database quer
 
 | Method | Route                                 | Handler                    | Auth | Description                        |
 | ------ | ------------------------------------- | -------------------------- | ---- | ---------------------------------- |
+| GET    | `/analytics/bird-migration/page`      | `GetBirdMigrationPage`     | ❌   | Bird migration page payload        |
 | GET    | `/analytics/bird-migration/seasons`   | `GetBirdMigrationSeasons`  | ❌   | Bird migration season metadata     |
 | GET    | `/analytics/bird-migration/disappearances` | `GetBirdMigrationDisappearances` | ❌   | Mid-season disappearances with returns |
 | GET    | `/analytics/species/daily`            | `GetDailySpeciesSummary`   | ❌   | Daily species detection summary    |
