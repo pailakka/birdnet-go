@@ -71,6 +71,7 @@ Performance Optimizations:
     Shield,
     LifeBuoy,
     Paintbrush,
+    CalendarRange,
   } from '@lucide/svelte';
   import { flyout } from '$lib/utils/transitions';
   import { t } from '$lib/i18n';
@@ -211,6 +212,7 @@ Performance Optimizations:
     analytics: actualRoute.startsWith('/ui/analytics'),
     analyticsExact: actualRoute === '/ui/analytics',
     analyticsAdvanced: actualRoute === '/ui/analytics/advanced',
+    analyticsBirdMigration: actualRoute === '/ui/analytics/bird-migration',
     analyticsSpecies: actualRoute === '/ui/analytics/species',
     search: actualRoute.startsWith('/ui/search'),
     about: actualRoute.startsWith('/ui/about'),
@@ -255,6 +257,9 @@ Performance Optimizations:
     liveStream: onNavigate ? '/live-stream' : '/ui/live-stream',
     analytics: onNavigate ? '/analytics' : '/ui/analytics',
     analyticsAdvanced: '/ui/analytics/advanced',
+    analyticsBirdMigration: onNavigate
+      ? '/analytics/bird-migration'
+      : '/ui/analytics/bird-migration',
     analyticsSpecies: onNavigate ? '/analytics/species' : '/ui/analytics/species',
     search: onNavigate ? '/search' : '/ui/search',
     about: onNavigate ? '/about' : '/ui/about',
@@ -491,6 +496,17 @@ Performance Optimizations:
                     <LineChart class="size-4 shrink-0" />{t('analytics.title')}
                   </button>
                   <button
+                    onclick={() => navigate(navigationUrls.analyticsBirdMigration)}
+                    class={cn(
+                      'flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm transition-colors duration-150',
+                      routeCache.analyticsBirdMigration
+                        ? 'menu-subitem-active'
+                        : 'text-[var(--color-base-content)]/80 hover:text-[var(--color-base-content)] hover:menu-hover'
+                    )}
+                  >
+                    <CalendarRange class="size-4 shrink-0" />{t('navigation.birdMigration')}
+                  </button>
+                  <button
                     onclick={() => navigate(navigationUrls.analyticsSpecies)}
                     class={cn(
                       'flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm transition-colors duration-150',
@@ -552,6 +568,17 @@ Performance Optimizations:
                   )}
                 >
                   <LineChart class="size-4 shrink-0" />{t('analytics.title')}
+                </button>
+                <button
+                  onclick={() => navigate(navigationUrls.analyticsBirdMigration)}
+                  class={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors duration-150',
+                    routeCache.analyticsBirdMigration
+                      ? 'menu-subitem-active'
+                      : 'text-[var(--color-base-content)]/80 hover:text-[var(--color-base-content)] hover:menu-hover'
+                  )}
+                >
+                  <CalendarRange class="size-4 shrink-0" />{t('navigation.birdMigration')}
                 </button>
                 <button
                   onclick={() => navigate(navigationUrls.analyticsSpecies)}

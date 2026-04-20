@@ -11,6 +11,7 @@
   import { getLogger } from '$lib/utils/logger';
   import { getLocalDateString } from '$lib/utils/date';
   import { navigation } from '$lib/stores/navigation.svelte';
+  import { parseDetectionDateFilter } from './utils/queryParams';
 
   const logger = getLogger('app');
 
@@ -50,6 +51,7 @@
   function getQueryParams(): DetectionQueryParams {
     const params = new URLSearchParams(window.location.search);
     const search = params.get('search');
+    const dateFilter = parseDetectionDateFilter(params);
 
     // Set queryType to 'search' if search parameter is present
     let queryType = params.get('queryType') as DetectionQueryParams['queryType'];
@@ -80,20 +82,15 @@
       }
     }
 
-    // Only default to today's date for non-search query types.
-    // For search queries, omitting the date allows searching across all dates.
-    // When date is included, the backend restricts results to that single day,
-    // which causes search to return no results for species detected on other days.
-    const date =
-      params.get('date')?.trim() || (queryType !== 'search' ? getLocalDateString() : undefined);
-
     return {
       queryType,
-      date,
+      date: dateFilter.date,
       hour: params.get('hour') || undefined,
       duration: params.get('duration') ? parseInt(params.get('duration')!) : undefined,
       species: params.get('species') || undefined,
       search: search || undefined,
+      start_date: dateFilter.start_date,
+      end_date: dateFilter.end_date,
       numResults,
       offset: parseInt(params.get('offset') || '0'),
       sortBy,
@@ -130,7 +127,13 @@
       detectionsData = {
         notes: data.data || [],
         queryType: queryParams.queryType || 'all',
-        date: queryParams.date?.trim() || getLocalDateString(),
+        date:
+          queryParams.date ||
+          queryParams.start_date ||
+          queryParams.end_date ||
+          getLocalDateString(),
+        startDate: queryParams.start_date,
+        endDate: queryParams.end_date,
         hour: queryParams.hour ? parseInt(queryParams.hour) : undefined,
         duration: queryParams.duration,
         species: queryParams.species,

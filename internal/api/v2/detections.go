@@ -592,6 +592,9 @@ func (c *Controller) getDetectionsByQueryType(params *detectionQueryParams) ([]d
 	case "hourly":
 		return c.getHourlyDetections(params.Date, params.Hour, params.Duration, params.NumResults, params.Offset)
 	case queryTypeSpecies:
+		if params.StartDate != "" || params.EndDate != "" {
+			return c.getSearchDetectionsAdvanced(params)
+		}
 		return c.getSpeciesDetections(params.Species, params.Date, params.Hour, params.Duration, params.NumResults, params.Offset)
 	case queryTypeSearch:
 		// Use advanced search if filters are present

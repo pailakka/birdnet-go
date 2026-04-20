@@ -223,6 +223,11 @@ describe('Sidebar Navigation', () => {
   const sidebarRoutes = [
     { name: 'Dashboard', path: '/ui/dashboard', selector: '[href*="dashboard"]' },
     { name: 'Analytics', path: '/ui/analytics', selector: '[href*="analytics"]' },
+    {
+      name: 'Bird Migration',
+      path: '/ui/analytics/bird-migration',
+      selector: '[href*="bird-migration"]',
+    },
     { name: 'Search', path: '/ui/search', selector: '[href*="search"]' },
     { name: 'About', path: '/ui/about', selector: '[href*="about"]' },
     { name: 'System', path: '/ui/system', selector: '[href*="system"]' },

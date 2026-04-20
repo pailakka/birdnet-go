@@ -1606,6 +1606,67 @@ func (_c *MockInterface_GetBatchHourlyOccurrences_Call) RunAndReturn(run func(st
 	return _c
 }
 
+// GetBirdMigrationDisappearances provides a mock function with given fields: ctx, startDate, endDate, windowDays
+func (_m *MockInterface) GetBirdMigrationDisappearances(ctx context.Context, startDate string, endDate string, windowDays int) ([]datastore.BirdMigrationDisappearanceData, error) {
+	ret := _m.Called(ctx, startDate, endDate, windowDays)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBirdMigrationDisappearances")
+	}
+
+	var r0 []datastore.BirdMigrationDisappearanceData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int) ([]datastore.BirdMigrationDisappearanceData, error)); ok {
+		return rf(ctx, startDate, endDate, windowDays)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int) []datastore.BirdMigrationDisappearanceData); ok {
+		r0 = rf(ctx, startDate, endDate, windowDays)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]datastore.BirdMigrationDisappearanceData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int) error); ok {
+		r1 = rf(ctx, startDate, endDate, windowDays)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInterface_GetBirdMigrationDisappearances_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBirdMigrationDisappearances'
+type MockInterface_GetBirdMigrationDisappearances_Call struct {
+	*mock.Call
+}
+
+// GetBirdMigrationDisappearances is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startDate string
+//   - endDate string
+//   - windowDays int
+func (_e *MockInterface_Expecter) GetBirdMigrationDisappearances(ctx interface{}, startDate interface{}, endDate interface{}, windowDays interface{}) *MockInterface_GetBirdMigrationDisappearances_Call {
+	return &MockInterface_GetBirdMigrationDisappearances_Call{Call: _e.mock.On("GetBirdMigrationDisappearances", ctx, startDate, endDate, windowDays)}
+}
+
+func (_c *MockInterface_GetBirdMigrationDisappearances_Call) Run(run func(ctx context.Context, startDate string, endDate string, windowDays int)) *MockInterface_GetBirdMigrationDisappearances_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockInterface_GetBirdMigrationDisappearances_Call) Return(_a0 []datastore.BirdMigrationDisappearanceData, _a1 error) *MockInterface_GetBirdMigrationDisappearances_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInterface_GetBirdMigrationDisappearances_Call) RunAndReturn(run func(context.Context, string, string, int) ([]datastore.BirdMigrationDisappearanceData, error)) *MockInterface_GetBirdMigrationDisappearances_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCommentsBatch provides a mock function with given fields: afterID, batchSize
 func (_m *MockInterface) GetCommentsBatch(afterID uint, batchSize int) ([]datastore.NoteComment, error) {
 	ret := _m.Called(afterID, batchSize)
@@ -2032,6 +2093,62 @@ func (_c *MockInterface_GetDynamicThresholdStats_Call) Return(totalCount int64, 
 }
 
 func (_c *MockInterface_GetDynamicThresholdStats_Call) RunAndReturn(run func() (int64, int64, int64, map[int]int64, error)) *MockInterface_GetDynamicThresholdStats_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEarliestDetectionDate provides a mock function with given fields: ctx
+func (_m *MockInterface) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEarliestDetectionDate")
+	}
+
+	var r0 time.Time
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (time.Time, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) time.Time); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(time.Time)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInterface_GetEarliestDetectionDate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEarliestDetectionDate'
+type MockInterface_GetEarliestDetectionDate_Call struct {
+	*mock.Call
+}
+
+// GetEarliestDetectionDate is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockInterface_Expecter) GetEarliestDetectionDate(ctx interface{}) *MockInterface_GetEarliestDetectionDate_Call {
+	return &MockInterface_GetEarliestDetectionDate_Call{Call: _e.mock.On("GetEarliestDetectionDate", ctx)}
+}
+
+func (_c *MockInterface_GetEarliestDetectionDate_Call) Run(run func(ctx context.Context)) *MockInterface_GetEarliestDetectionDate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockInterface_GetEarliestDetectionDate_Call) Return(_a0 time.Time, _a1 error) *MockInterface_GetEarliestDetectionDate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInterface_GetEarliestDetectionDate_Call) RunAndReturn(run func(context.Context) (time.Time, error)) *MockInterface_GetEarliestDetectionDate_Call {
 	_c.Call.Return(run)
 	return _c
 }

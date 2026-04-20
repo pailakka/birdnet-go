@@ -886,7 +886,7 @@
                           >
                             <SquarePen class="size-4" />
                           </button>
-                          {#if reviewOpenForId === result.id}
+                            {#if reviewOpenForId === result.id}
                             <div
                               class="review-dropdown"
                               in:dropdown={{ y: -4, duration: 120 }}
@@ -1145,7 +1145,7 @@
                           <SquarePen class="size-4" />
                           {t('search.review.review')}
                         </button>
-                        {#if reviewOpenForId === result.id}
+                          {#if reviewOpenForId === result.id}
                           <div
                             class="review-dropdown"
                             in:dropdown={{ y: -4, duration: 120 }}

@@ -31,6 +31,7 @@
   // Dynamic imports for heavy pages - properly typed component references
   let Analytics = $state<Component | null>(null);
   let AdvancedAnalytics = $state<Component | null>(null);
+  let BirdMigration = $state<Component | null>(null);
   let Species = $state<Component | null>(null);
   let Search = $state<Component | null>(null);
   let About = $state<Component | null>(null);
@@ -108,6 +109,12 @@
       titleKey: 'pageTitle.advancedAnalytics',
       component: 'advanced-analytics',
     },
+    {
+      route: 'bird-migration',
+      page: 'analytics/bird-migration',
+      titleKey: 'pageTitle.birdMigrationAnalytics',
+      component: 'bird-migration',
+    },
     { route: 'search', page: 'search', titleKey: 'navigation.search', component: 'search' },
     {
       route: 'detections',
@@ -170,6 +177,13 @@
             const module =
               await import('./lib/desktop/features/analytics/pages/AdvancedAnalytics.svelte');
             AdvancedAnalytics = module.default;
+          }
+          break;
+        case 'bird-migration':
+          if (!BirdMigration) {
+            const module =
+              await import('./lib/desktop/features/analytics/pages/BirdMigration.svelte');
+            BirdMigration = module.default;
           }
           break;
         case 'species':
@@ -292,6 +306,7 @@
     [uiPath('dashboard')]: findRouteConfig('dashboard'),
     [uiPath('live-stream')]: findRouteConfig('live-stream'),
     [uiPath('notifications')]: findRouteConfig('notifications'),
+    [uiPath('analytics', 'bird-migration')]: findRouteConfig('bird-migration'),
     [uiPath('analytics', 'species')]: findRouteConfig('species'),
     [uiPath('analytics', 'advanced')]: findRouteConfig('advanced-analytics'),
     [uiPath('analytics')]: findRouteConfig('analytics'),
@@ -564,6 +579,8 @@
       {@render renderRoute(Analytics)}
     {:else if currentRoute === 'advanced-analytics'}
       {@render renderRoute(AdvancedAnalytics)}
+    {:else if currentRoute === 'bird-migration'}
+      {@render renderRoute(BirdMigration)}
     {:else if currentRoute === 'species'}
       {@render renderRoute(Species)}
     {:else if currentRoute === 'search'}

@@ -4,6 +4,9 @@ package datastore
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,6 +29,7 @@ type SpeciesSummaryData struct {
 	CommonName     string
 	SpeciesCode    string
 	Count          int
+	ActiveDays     int
 	FirstSeen      time.Time
 	LastSeen       time.Time
 	AvgConfidence  float64
@@ -57,6 +61,184 @@ type NewSpeciesData struct {
 	CommonName     string `json:"common_name"`
 	FirstSeenDate  string `json:"first_seen_date"` // The absolute first date
 	CountInPeriod  int    `json:"count_in_period"` // Optional: How many times seen in the query period
+}
+
+// BirdMigrationActivityData represents one species having detections on a specific date.
+type BirdMigrationActivityData struct {
+	ScientificName string
+	CommonName     string
+	SpeciesCode    string
+	Date           string
+}
+
+// BirdMigrationDisappearanceData represents a mid-season disappearance followed by a return.
+type BirdMigrationDisappearanceData struct {
+	ScientificName     string
+	CommonName         string
+	SpeciesCode        string
+	LastHeardBeforeGap string
+	ReturnedOn         string
+	GapDays            int
+}
+
+// GetEarliestDetectionDate retrieves the earliest non-false-positive detection date.
+func (ds *DataStore) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	type earliestDetectionResult struct {
+		EarliestDate string
+	}
+
+	var result earliestDetectionResult
+	err := ds.DB.WithContext(ctx).
+		Table("notes").
+		Joins("LEFT JOIN note_reviews ON notes.id = note_reviews.note_id").
+		Select("MIN(notes.date) as earliest_date").
+		Where("notes.date IS NOT NULL AND notes.date != ''").
+		Where("(note_reviews.verified IS NULL OR note_reviews.verified != ?)", string(entities.VerificationFalsePositive)).
+		Scan(&result).Error
+	if err != nil {
+		return time.Time{}, errors.New(err).
+			Component("datastore").
+			Category(errors.CategoryDatabase).
+			Context("operation", "get_earliest_detection_date").
+			Build()
+	}
+
+	if result.EarliestDate == "" {
+		return time.Time{}, nil
+	}
+
+	earliestDate, err := time.ParseInLocation(time.DateOnly, result.EarliestDate, time.Local)
+	if err != nil {
+		return time.Time{}, errors.New(err).
+			Component("datastore").
+			Category(errors.CategoryDatabase).
+			Context("operation", "parse_earliest_detection_date").
+			Context("earliest_date", result.EarliestDate).
+			Build()
+	}
+
+	return earliestDate, nil
+}
+
+// GetBirdMigrationDisappearances retrieves species that disappeared for longer than the
+// configured threshold and were later detected again within the selected date range.
+func (ds *DataStore) GetBirdMigrationDisappearances(
+	ctx context.Context,
+	startDate, endDate string,
+	windowDays int,
+) ([]BirdMigrationDisappearanceData, error) {
+	activityData := make([]BirdMigrationActivityData, 0, 256)
+
+	query := ds.DB.WithContext(ctx).
+		Table("notes").
+		Select(`
+			notes.scientific_name,
+			COALESCE(MAX(notes.common_name), '') as common_name,
+			COALESCE(MAX(notes.species_code), '') as species_code,
+			notes.date
+		`).
+		Joins("LEFT JOIN note_reviews ON notes.id = note_reviews.note_id").
+		Where("notes.date IS NOT NULL AND notes.date != ''").
+		Where("(note_reviews.verified IS NULL OR note_reviews.verified != ?)", string(entities.VerificationFalsePositive)).
+		Group("notes.scientific_name, notes.date").
+		Order("notes.scientific_name ASC, notes.date ASC")
+
+	switch {
+	case startDate != "" && endDate != "":
+		query = query.Where("notes.date >= ? AND notes.date <= ?", startDate, endDate)
+	case startDate != "":
+		query = query.Where("notes.date >= ?", startDate)
+	case endDate != "":
+		query = query.Where("notes.date <= ?", endDate)
+	}
+
+	if err := query.Scan(&activityData).Error; err != nil {
+		return nil, errors.New(err).
+			Component("datastore").
+			Category(errors.CategoryDatabase).
+			Context("operation", "get_bird_migration_disappearances").
+			Context("start_date", startDate).
+			Context("end_date", endDate).
+			Build()
+	}
+
+	return BuildBirdMigrationDisappearances(activityData, windowDays), nil
+}
+
+// BuildBirdMigrationDisappearances calculates the longest qualifying returned gap for each species.
+func BuildBirdMigrationDisappearances(
+	activityData []BirdMigrationActivityData,
+	windowDays int,
+) []BirdMigrationDisappearanceData {
+	if len(activityData) == 0 {
+		return []BirdMigrationDisappearanceData{}
+	}
+
+	disappearancesBySpecies := make(map[string]BirdMigrationDisappearanceData, len(activityData))
+	var previous BirdMigrationActivityData
+	hasPrevious := false
+
+	for i := range activityData {
+		current := activityData[i]
+		if !hasPrevious || previous.ScientificName != current.ScientificName {
+			previous = current
+			hasPrevious = true
+			continue
+		}
+
+		gapDays, err := birdMigrationGapDays(previous.Date, current.Date)
+		if err != nil {
+			previous = current
+			continue
+		}
+
+		if gapDays > windowDays {
+			candidate := BirdMigrationDisappearanceData{
+				ScientificName:     current.ScientificName,
+				CommonName:         current.CommonName,
+				SpeciesCode:        current.SpeciesCode,
+				LastHeardBeforeGap: previous.Date,
+				ReturnedOn:         current.Date,
+				GapDays:            gapDays,
+			}
+
+			existing, exists := disappearancesBySpecies[current.ScientificName]
+			if !exists || candidate.GapDays > existing.GapDays ||
+				(candidate.GapDays == existing.GapDays && candidate.ReturnedOn > existing.ReturnedOn) {
+				disappearancesBySpecies[current.ScientificName] = candidate
+			}
+		}
+
+		previous = current
+	}
+
+	result := slices.Collect(maps.Values(disappearancesBySpecies))
+
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].GapDays != result[j].GapDays {
+			return result[i].GapDays > result[j].GapDays
+		}
+		if result[i].ReturnedOn != result[j].ReturnedOn {
+			return result[i].ReturnedOn > result[j].ReturnedOn
+		}
+		return result[i].CommonName < result[j].CommonName
+	})
+
+	return result
+}
+
+func birdMigrationGapDays(startDate, endDate string) (int, error) {
+	start, err := time.ParseInLocation(time.DateOnly, startDate, time.UTC)
+	if err != nil {
+		return 0, err
+	}
+
+	end, err := time.ParseInLocation(time.DateOnly, endDate, time.UTC)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(end.Sub(start).Hours() / 24), nil
 }
 
 // GetSpeciesSummaryData retrieves overall statistics for all bird species
@@ -103,6 +285,7 @@ func (ds *DataStore) GetSpeciesSummaryData(ctx context.Context, startDate, endDa
 			COALESCE(MAX(notes.common_name), '') as common_name,
 			COALESCE(MAX(notes.species_code), '') as species_code,
 			COUNT(*) as count,
+			COUNT(DISTINCT notes.date) as active_days,
 			MIN(%s) as first_seen,
 			MAX(%s) as last_seen,
 			AVG(notes.confidence) as avg_confidence,
@@ -195,6 +378,7 @@ func (ds *DataStore) GetSpeciesSummaryData(ctx context.Context, startDate, endDa
 				&summary.CommonName,
 				&summary.SpeciesCode,
 				&summary.Count,
+				&summary.ActiveDays,
 				&firstSeenStr,
 				&lastSeenStr,
 				&summary.AvgConfidence,

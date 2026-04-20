@@ -80,12 +80,22 @@ Lightweight connectivity check. Returns a minimal response with no database quer
 | POST   | `/auth/logout` | `Logout`        | ✅   | End user session            |
 | GET    | `/auth/status` | `GetAuthStatus` | ✅   | Check authentication status |
 
+### Application (`app.go`)
+
+| Method | Route                 | Handler        | Auth | Description                                           |
+| ------ | --------------------- | -------------- | ---- | ----------------------------------------------------- |
+| GET    | `/app/config`         | `GetAppConfig` | ❌   | Public SPA bootstrap config |
+| POST   | `/app/wizard/dismiss` | `DismissWizard`| ⚠️   | Persist wizard dismissal state                        |
+
 ### Analytics (`analytics.go`)
 
 | Method | Route                                 | Handler                    | Auth | Description                        |
 | ------ | ------------------------------------- | -------------------------- | ---- | ---------------------------------- |
+| GET    | `/analytics/bird-migration/page`      | `GetBirdMigrationPage`     | ❌   | Bird migration page payload        |
+| GET    | `/analytics/bird-migration/seasons`   | `GetBirdMigrationSeasons`  | ❌   | Bird migration season metadata     |
+| GET    | `/analytics/bird-migration/disappearances` | `GetBirdMigrationDisappearances` | ❌   | Mid-season disappearances with returns |
 | GET    | `/analytics/species/daily`            | `GetDailySpeciesSummary`   | ❌   | Daily species detection summary    |
-| GET    | `/analytics/species/summary`          | `GetSpeciesSummary`        | ❌   | Overall species statistics         |
+| GET    | `/analytics/species/summary`          | `GetSpeciesSummary`        | ❌   | Overall species statistics, now including `active_days` |
 | GET    | `/analytics/species/detections/new`   | `GetNewSpeciesDetections`  | ❌   | Recently detected new species      |
 | GET    | `/analytics/species/thumbnails`       | `GetSpeciesThumbnails`     | ❌   | Species thumbnail images           |
 | GET    | `/analytics/time/hourly`              | `GetHourlyAnalytics`       | ❌   | Hourly detection patterns          |

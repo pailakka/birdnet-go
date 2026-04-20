@@ -223,6 +223,16 @@ func (m *mockStore) ClearNoteClipPathsByNames(_ []string) (int64, error) { retur
 func (m *mockStore) CountHourlyDetections(date, hour string, duration int) (int64, error) {
 	return 0, nil
 }
+func (m *mockStore) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	return time.Time{}, nil
+}
+func (m *mockStore) GetBirdMigrationDisappearances(
+	ctx context.Context,
+	startDate, endDate string,
+	windowDays int,
+) ([]datastore.BirdMigrationDisappearanceData, error) {
+	return []datastore.BirdMigrationDisappearanceData{}, nil
+}
 func (m *mockStore) GetDailyAnalyticsData(ctx context.Context, startDate, endDate, species string) ([]datastore.DailyAnalyticsData, error) {
 	return []datastore.DailyAnalyticsData{}, nil
 }
@@ -419,6 +429,24 @@ func (m *mockFailingStore) GetHourlyAnalyticsData(ctx context.Context, date, spe
 
 func (m *mockFailingStore) GetSpeciesSummaryData(ctx context.Context, startDate, endDate string) ([]datastore.SpeciesSummaryData, error) {
 	return m.mockStore.GetSpeciesSummaryData(ctx, startDate, endDate)
+}
+
+func (m *mockFailingStore) GetEarliestDetectionDate(ctx context.Context) (time.Time, error) {
+	if m.failGetAllCache {
+		return time.Time{}, fmt.Errorf("simulated database error")
+	}
+	return m.mockStore.GetEarliestDetectionDate(ctx)
+}
+
+func (m *mockFailingStore) GetBirdMigrationDisappearances(
+	ctx context.Context,
+	startDate, endDate string,
+	windowDays int,
+) ([]datastore.BirdMigrationDisappearanceData, error) {
+	if m.failGetAllCache {
+		return nil, fmt.Errorf("simulated database error")
+	}
+	return m.mockStore.GetBirdMigrationDisappearances(ctx, startDate, endDate, windowDays)
 }
 
 func (m *mockFailingStore) GetNewSpeciesDetections(ctx context.Context, startDate, endDate string, limit, offset int) ([]datastore.NewSpeciesData, error) {

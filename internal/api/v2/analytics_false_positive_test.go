@@ -36,6 +36,7 @@ func TestGetSpeciesSummary_ExcludesFalsePositives(t *testing.T) {
 			CommonName:     "American Robin",
 			SpeciesCode:    "amerob",
 			Count:          2, // This is the key test - count excludes false_positive
+			ActiveDays:     1,
 			FirstSeen:      time.Date(2024, 1, 15, 8, 0, 0, 0, time.UTC),
 			LastSeen:       time.Date(2024, 1, 15, 9, 0, 0, 0, time.UTC),
 			AvgConfidence:  0.875, // Average of 0.85 and 0.90 (not including false_positive's 0.88)
@@ -46,6 +47,7 @@ func TestGetSpeciesSummary_ExcludesFalsePositives(t *testing.T) {
 			CommonName:     "Blue Jay",
 			SpeciesCode:    "blujay",
 			Count:          2,
+			ActiveDays:     1,
 			FirstSeen:      time.Date(2024, 1, 15, 11, 0, 0, 0, time.UTC),
 			LastSeen:       time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC),
 			AvgConfidence:  0.895,
@@ -86,6 +88,8 @@ func TestGetSpeciesSummary_ExcludesFalsePositives(t *testing.T) {
 	require.NotNil(t, robinData, "American Robin should be in results")
 	assert.InDelta(t, 2.0, robinData["count"].(float64), 0.01,
 		"American Robin count should be 2 (excluding false_positive detection)")
+	assert.InDelta(t, 1.0, robinData["active_days"].(float64), 0.01,
+		"American Robin active days should reflect filtered detections")
 
 	// Verify Blue Jay count
 	jayData := findSpeciesInResponse(response, "Cyanocitta cristata")
